@@ -126,9 +126,31 @@ void exploreKernelObjectsLimit() {
 	std::cout << "CreateEvent limit is " << count << std::endl;
 }
 
+// GDI объекты допускают только один HANLDE на поток. К тому же они являются приватными для потока их создавшего.
+// "There is a theoretical limit of 65, 536 GDI handles per session. 
+// However, the maximum number of GDI handles that can be opened per session is usually lower, 
+// since it is affected by available memory."
+void exploreGdiObjectsLimit() {
+	std::cout << "Computing GDI objects limit..." << std::endl;
+	SIZE_T count = 1;
+	HANDLE penHandle;
+	do {
+		penHandle = CreatePen(0, 0, NULL);
+		if (penHandle != NULL) {
+			count++;
+		}
+		else {
+			printErrorMessage(GetLastError());
+		}
+	} while (penHandle != NULL);
+	std::cout << "CreateEvent limit is " << count << std::endl;
+}
+
 int main() {
 	//exploreMemoryAllocationLimit();
-	exploreHandlersLimit();
+	//exploreHandlersLimit();
+	//exploreKernelObjectsLimit();
+	exploreGdiObjectsLimit(); // 9997
 	return 0;
 }
 
