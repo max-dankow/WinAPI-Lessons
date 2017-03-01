@@ -158,12 +158,19 @@ void exploreGdiObjectsLimit() {
 	std::cout << "CreateEvent limit is " << count << std::endl;
 }
 
-void recursive() {
-	recursive();
+void recursive(SIZE_T depth) {
+	//DWORD local[10] = {0, 1, 2, 3 ,4, 5, 6, 7, 8, 9};
+	std::cout << depth << std::endl;
+	recursive(depth + 1);
 }
 
-void exploreStackSize() {
-
+void exploreCallSize() {
+	// 512b virtual mem for stack - 1113 calls
+	// 1 048 576 / 4354 = 240
+	// 1 048 5760 / 48500 = 216
+	// 2 097 152 / 9608 = 218
+	// CallSize is around 217 bytes(267 if with local array)
+	recursive(0);
 }
 
 int main() {
@@ -172,6 +179,7 @@ int main() {
 	//exploreKernelObjectsLimit();
 	//exploreGdiObjectsLimit(); // 9997 (actual quota is 10000)
 	//demonstrateMemoryFragmentation(1000);
+	exploreCallSize();
 	return 0;
 }
 

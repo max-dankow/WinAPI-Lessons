@@ -93,6 +93,9 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <LargeAddressAware>false</LargeAddressAware>
+      <StackReserveSize>2670000</StackReserveSize>
+      <StackCommitSize>
+      </StackCommitSize>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
