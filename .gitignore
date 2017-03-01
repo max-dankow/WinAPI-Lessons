@@ -36,3 +36,7 @@
 *.suo
 *.db
 *.opendb
+*.tlog
+*.log
+/OverTheLimits/OverTheLimits/Debug
+/OverTheLimits/Debug
