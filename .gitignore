@@ -31,3 +31,8 @@
 # Debug files
 *.dSYM/
 *.su
+*.ipch
+/OverTheLimits/OverTheLimits/OverTheLimits.vcxproj.filters
+*.suo
+*.db
+*.opendb
