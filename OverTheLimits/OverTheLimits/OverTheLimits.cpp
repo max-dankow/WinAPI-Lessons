@@ -97,7 +97,7 @@ void exploreHandlersLimit() {
 	SIZE_T count = 1;
 	BOOL result;
 	do {
-		HANDLE duplicatedHandle;
+		HANDLE duplicatedHandle; 
 		result = DuplicateHandle(GetCurrentProcess(), eventHandle, GetCurrentProcess(), &duplicatedHandle, 0, FALSE, DUPLICATE_SAME_ACCESS);
 		if (result == TRUE) {
 			count++;
@@ -105,12 +105,30 @@ void exploreHandlersLimit() {
 			printErrorMessage(GetLastError());
 		}
 	} while (result == TRUE);
-	std::cout << "Handles limit is" << count << std::endl;
+	std::cout << "Handles limit is " << count << std::endl;
+}
+
+// Сколько объектов Event удасться создать в одном процессе.
+// Логично, что не более максимального числа HANDLE.
+void exploreKernelObjectsLimit() {
+	std::cout << "Computing kernel objects limit..." << std::endl;
+	SIZE_T count = 1;
+	HANDLE eventHandle;
+	do {
+		eventHandle = CreateEvent(NULL, TRUE, TRUE, NULL);
+		if (eventHandle != NULL) {
+			count++;
+		}
+		else {
+			printErrorMessage(GetLastError());
+		}
+	} while (eventHandle != NULL);
+	std::cout << "CreateEvent limit is " << count << std::endl;
 }
 
 int main() {
 	//exploreMemoryAllocationLimit();
 	exploreHandlersLimit();
-    return 0;
+	return 0;
 }
 
