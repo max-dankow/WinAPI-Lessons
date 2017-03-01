@@ -40,8 +40,7 @@ BOOL tryAllocate(SIZE_T reserveSize, SIZE_T commitSize=0) {
 		printErrorMessage(GetLastError());
 		VirtualFree(buffer, 0, MEM_RELEASE);
 		return FALSE;
-	}
-	else {
+	} else {
 		std::cout << "OK" << std::endl;
 		BOOL commitResult = TRUE;
 		if (commitSize != 0) {
@@ -53,36 +52,65 @@ BOOL tryAllocate(SIZE_T reserveSize, SIZE_T commitSize=0) {
 	}
 }
 
-// Определение максимального объема памяти доступного при аллокации
+// Определение максимального объема памяти доступного при аллокации.
+// Закоммитить можно не больше чем максимально можно зарезервировать.
 void exploreMemoryAllocationLimit() {
+	// Сначала ищем максимальную еще допустимую степень 2
 	SIZE_T bufferSize = 4096;
 	SIZE_T base = 4096;
 	BOOL result;
 	do {
-		bufferSize <<= 1;
-		result = tryAllocate(bufferSize);
+		result = tryAllocate(bufferSize << 1);
+		if (result == TRUE) {
+			bufferSize <<= 1;
+		}
 	} while (result == TRUE);
-	bufferSize >>= 1;
+
+	// Пытаемся жадно добавлять все меньшие степени 2 к размеру резервируемого буффера
 	base = bufferSize >> 1;
 	do {
-		do {
-			result = tryAllocate(bufferSize + base);
-			if (result == TRUE) {
-				bufferSize += base;
-			}
-		} while (result == TRUE);
+		result = tryAllocate(bufferSize + base);
+		if (result == TRUE) {
+			bufferSize += base;
+		}
 		base >>= 1;
 	} while (base > 0);
+
+	// Демонстрация результата для MEM_RESERVE
 	tryAllocate(bufferSize);
 	tryAllocate(bufferSize + 1);
 	std::cout << "Max reserve size = " << std::dec << bufferSize / 1024 / 1024 << "MB" << std::endl;
+
+	// Пытаемся закоммитить максимально возможный для резервирования размер буффера
+	// Демонстрация результата для MEM_COMMIT
 	tryAllocate(bufferSize, bufferSize);
 	tryAllocate(bufferSize, bufferSize + 1);
 	std::cout << "Max commit size = " << std::dec << bufferSize / 1024 / 1024 << "MB" << std::endl;
 }
 
+// Сколько HANDLE может быть создано у процесса.
+// "The per-process limit on kernel hanles is 2^24, but actual limit is based on available memory limit"
+void exploreHandlersLimit() {
+	HANDLE eventHandle = CreateEvent(NULL, TRUE, TRUE, NULL);
+	std::cout << "Original event HANDLE " << eventHandle << std::endl;
+	std::cout << "Computing hanles limit..." << std::endl;
+	SIZE_T count = 1;
+	BOOL result;
+	do {
+		HANDLE duplicatedHandle;
+		result = DuplicateHandle(GetCurrentProcess(), eventHandle, GetCurrentProcess(), &duplicatedHandle, 0, FALSE, DUPLICATE_SAME_ACCESS);
+		if (result == TRUE) {
+			count++;
+		} else {
+			printErrorMessage(GetLastError());
+		}
+	} while (result == TRUE);
+	std::cout << "Handles limit is" << count << std::endl;
+}
+
 int main() {
-	exploreMemoryAllocationLimit();
+	//exploreMemoryAllocationLimit();
+	exploreHandlersLimit();
     return 0;
 }
 
