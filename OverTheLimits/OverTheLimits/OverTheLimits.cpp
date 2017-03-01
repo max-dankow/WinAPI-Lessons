@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include <Windows.h>
+#include <cstdlib>
 #include <iostream>
 
 void printErrorMessage(const DWORD errorCode) {
@@ -88,6 +89,16 @@ void exploreMemoryAllocationLimit() {
 	std::cout << "Max commit size = " << std::dec << bufferSize / 1024 / 1024 << "MB" << std::endl;
 }
 
+void demonstrateMemoryFragmentation(SIZE_T allocationNumber) {
+	for (SIZE_T i = 0; i < allocationNumber; ++i) {
+		SIZE_T reserveSize = (rand() % 128 + 10) * 1024;
+		SIZE_T commitSize = ((rand() * 1024) % reserveSize);
+		LPVOID reserved = VirtualAlloc(NULL, reserveSize, MEM_RESERVE, (rand() % 3 == 0)? PAGE_GUARD : PAGE_READWRITE);
+		VirtualAlloc(reserved, commitSize, MEM_COMMIT, PAGE_READWRITE);
+	}
+	std::cin.ignore();
+}
+
 // Сколько HANDLE может быть создано у процесса.
 // "The per-process limit on kernel hanles is 2^24, but actual limit is based on available memory limit"
 void exploreHandlersLimit() {
@@ -130,6 +141,7 @@ void exploreKernelObjectsLimit() {
 // "There is a theoretical limit of 65, 536 GDI handles per session. 
 // However, the maximum number of GDI handles that can be opened per session is usually lower, 
 // since it is affected by available memory."
+// HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows\GDIProcessHandleQuota = 10000
 void exploreGdiObjectsLimit() {
 	std::cout << "Computing GDI objects limit..." << std::endl;
 	SIZE_T count = 1;
@@ -146,11 +158,20 @@ void exploreGdiObjectsLimit() {
 	std::cout << "CreateEvent limit is " << count << std::endl;
 }
 
+void recursive() {
+	recursive();
+}
+
+void exploreStackSize() {
+
+}
+
 int main() {
 	//exploreMemoryAllocationLimit();
 	//exploreHandlersLimit();
 	//exploreKernelObjectsLimit();
-	exploreGdiObjectsLimit(); // 9997
+	//exploreGdiObjectsLimit(); // 9997 (actual quota is 10000)
+	//demonstrateMemoryFragmentation(1000);
 	return 0;
 }
 
