@@ -18,17 +18,16 @@ void printErrorMessage(const DWORD errorCode) {
 	}
 }
 
-BOOL tryCommit(LPVOID reservedBuffer, SIZE_T commitSize = 0) {
+BOOL tryCommit(LPVOID reserved, SIZE_T commitSize = 0) {
 	std::cout << "Trying to commit 0x" << std::hex << commitSize << " bytes:" << std::endl;
-	LPVOID buffer = VirtualAlloc(NULL, commitSize, MEM_COMMIT, PAGE_READWRITE);
-	if (buffer == NULL) {
+	LPVOID committed = VirtualAlloc(reserved, commitSize, MEM_COMMIT, PAGE_READWRITE);
+	if (committed == NULL) {
 		std::cout << "COMMIT FAIL:" << std::endl;
 		printErrorMessage(GetLastError());
-		VirtualFree(buffer, commitSize, MEM_DECOMMIT);
 		return FALSE;
 	} else {
 		std::cout << "OK" << std::endl;
-		VirtualFree(buffer, commitSize, MEM_DECOMMIT);
+		VirtualFree(committed, commitSize, MEM_DECOMMIT);
 		return TRUE;
 	}
 }
@@ -39,13 +38,11 @@ BOOL tryAllocate(SIZE_T reserveSize, SIZE_T commitSize=0) {
 	if (buffer == NULL) {
 		std::cout << "FAIL:" << std::endl;
 		printErrorMessage(GetLastError());
-		VirtualFree(buffer, 0, MEM_RELEASE);
 		return FALSE;
 	} else {
 		std::cout << "OK" << std::endl;
 		BOOL commitResult = TRUE;
 		if (commitSize != 0) {
-			//VirtualAlloc(buffer, commitSize, MEM_COMMIT, PAGE_READWRITE);
 			commitResult = tryCommit(buffer, commitSize);
 		}
 		VirtualFree(buffer, 0, MEM_RELEASE);
@@ -77,16 +74,27 @@ void exploreMemoryAllocationLimit() {
 		base >>= 1;
 	} while (base > 0);
 
+	
+	// Пытаемся закоммитить максимально возможный для резервирования размер буффера
+	// Пытаемся жадно добавлять все меньшие степени 2 к размеру резервируемого буффера
+	SIZE_T commitSize = 0;
+	base = bufferSize;
+	do {
+		result = tryAllocate(bufferSize, commitSize + base);
+		if (result == TRUE) {
+			commitSize += base;
+		}
+		base >>= 1;
+	} while (base > 0);
+
 	// Демонстрация результата для MEM_RESERVE
 	tryAllocate(bufferSize);
 	tryAllocate(bufferSize + 1);
-	std::cout << "Max reserve size = " << std::dec << bufferSize / 1024 / 1024 << "MB" << std::endl;
-
-	// Пытаемся закоммитить максимально возможный для резервирования размер буффера
 	// Демонстрация результата для MEM_COMMIT
-	tryAllocate(bufferSize, bufferSize);
-	tryAllocate(bufferSize, bufferSize + 1);
-	std::cout << "Max commit size = " << std::dec << bufferSize / 1024 / 1024 << "MB" << std::endl;
+	tryAllocate(bufferSize, commitSize);
+	tryAllocate(bufferSize, commitSize + 1);
+	std::cout << "Max reserve size = " << std::dec << (bufferSize >> 20) << "MB" << std::endl;
+	std::cout << "Max commit size = " << std::dec << (commitSize >> 20) << "MB" << std::endl;
 }
 
 void demonstrateMemoryFragmentation(SIZE_T allocationNumber) {
@@ -158,10 +166,10 @@ void exploreGdiObjectsLimit() {
 	std::cout << "CreateEvent limit is " << count << std::endl;
 }
 
-void recursive(SIZE_T depth) {
-	//DWORD local[10] = {0, 1, 2, 3 ,4, 5, 6, 7, 8, 9};
-	std::cout << depth << std::endl;
-	recursive(depth + 1);
+void recursive(SIZE_T prevAddr) {
+	BYTE local[400]; // 100 - 328; 1 - 228
+	std::cout << prevAddr - (int)&local << std::endl;
+	recursive((int)&local);
 }
 
 void exploreCallSize() {
@@ -174,12 +182,12 @@ void exploreCallSize() {
 }
 
 int main() {
-	//exploreMemoryAllocationLimit();
+	exploreMemoryAllocationLimit();
 	//exploreHandlersLimit();
 	//exploreKernelObjectsLimit();
 	//exploreGdiObjectsLimit(); // 9997 (actual quota is 10000)
 	//demonstrateMemoryFragmentation(1000);
-	exploreCallSize();
+	//exploreCallSize();
 	return 0;
 }
 
