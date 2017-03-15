@@ -40,3 +40,9 @@
 *.log
 /OverTheLimits/OverTheLimits/Debug
 /OverTheLimits/Debug
+*.DS_Store
+/HeapManager/Debug
+/HeapManager/HeapManager/Debug
+/HeapManager/HeapManager/Release
+/HeapManager/HeapManager/ReadMe.txt
+/HeapManager/Release
