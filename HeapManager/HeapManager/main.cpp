@@ -14,6 +14,7 @@ void Demo1()
 	CHeapManager heapManager;
 	heapManager.Create(pageSize, heapSize);
 	heapManager.Alloc(5000);
+	heapManager.Alloc(50);
 }
 
 int main()

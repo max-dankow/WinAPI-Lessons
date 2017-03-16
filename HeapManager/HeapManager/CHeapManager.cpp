@@ -33,7 +33,7 @@ void CHeapManager::Create( size_t minSize, size_t maxSize )
 		}
 		heapSize = maxSize;
 		initializePages();
-		addFreeBlock(Block(heap, heapSize), Heading(0, 0));
+		addFreeBlock(Block(heap, heapSize), 0);
 	} else {
 		throw std::logic_error("Heap is already created");
 	}
@@ -43,21 +43,25 @@ void* CHeapManager::Alloc( size_t size )
 {
 	size = round( size, 4 );
 	Block suitableBlock = findSuitableFreeBlock( size );
-	if (suitableBlock.addr == 0) {
+	if( suitableBlock.addr == 0 ) {
 		std::cerr << "Can't allocate more" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	Block newBlock = biteOf(suitableBlock, size);
-	ensureBlockIsCommitted(newBlock);
-	updatePages(newBlock, +1);
-	freeSmall.erase(newBlock);
-	allocated.insert(newBlock);
-	 
-	return getBody(newBlock);
+	allocateBlock(newBlock);
+	return getBlockBodyAddr(newBlock);
 }
 
-void CHeapManager::Free(void * mem)
+void CHeapManager::Free( void* mem )
 {
+	Heading* heading = (Heading*)(static_cast<byte*> (mem) - sizeof(Heading));
+	Block currentBlock = Block(heading, heading->blockSize);
+	allocated.erase(currentBlock);
+	
+	Heading* left = heading->prev;
+	Block rightBlock = getNext(currentBlock);
+
+
 }
 
 // Округляет value до числа кратного roundTo
@@ -81,16 +85,6 @@ Block CHeapManager::findSuitableFreeBlock( size_t size )
 		}
 	}
 	return Block(0, 0);
-	/*Heading* suitableBlock = 0;
-	Heading* currentBlock = (Heading*) heap;
-	while ( currentBlock != 0 ) {
-		if ( currentBlock->isFree && currentBlock->blockSize >= size ) {
-			suitableBlock = currentBlock;
-			break;
-		}
-		currentBlock = currentBlock->next;
-	}
-	return suitableBlock;*/
 }
 
 void CHeapManager::mergeNext(Heading *block)
@@ -106,26 +100,34 @@ void CHeapManager::mergeNext(Heading *block)
 	}*/
 }
 
-// Обеспечивает блок закоммиченной памятью, обновляет pages
+// Обеспечивает блок закоммиченной памятью
 void CHeapManager::ensureBlockIsCommitted(const Block block)
 {
 	// Закоммитятся не закоммиченные страницы
-	LPVOID commitResult = VirtualAlloc(block.addr, block.size, MEM_COMMIT, PAGE_READWRITE);
+	LPVOID commitResult = VirtualAlloc(block.addr, sizeof(Heading) + block.size, MEM_COMMIT, PAGE_READWRITE);
 	if( commitResult == 0 ) {
 		throw std::bad_alloc();
 	}
 }
 
-// todo: simplify
-void CHeapManager::updatePages(const Block block, int sign)
+void CHeapManager::releasePage(LPVOID page)
 {
-	assert(sign == 1 || sign == -1);
+	VirtualFree(page, systemInfo.dwPageSize, MEM_DECOMMIT);
+}
+
+void CHeapManager::updatePages(const Block block, int operation)
+{
+	assert(operation == PAGES_SUBSCRIBE || operation == PAGES_UNSUBSCRIBE || operation == PAGES_TRY_CLEAR);
 	// Обновление pages
 	size_t offset = static_cast<byte*>(block.addr) - static_cast<byte*>(heap);
 	size_t startPage = offset / systemInfo.dwPageSize;
 	size_t endPage = (offset + block.size + sizeof(Heading)) / systemInfo.dwPageSize;
 	for (size_t i = startPage; i <= endPage; ++i) {
-		pages[i] += sign;
+		if( operation == 0 && pages[i] == 0) {
+			releasePage(static_cast<byte*>(heap) + i * systemInfo.dwPageSize);
+		} else {
+			pages[i] += operation;
+		}
 	}
 }
 
@@ -133,32 +135,48 @@ void CHeapManager::updatePages(const Block block, int sign)
 Block CHeapManager::biteOf(Block source, size_t size)
 {
 	assert(source.size >= size);
+	Heading* sourceHeading = getHeadingAddr(source);
 	// Если еще останется свободное место, то добавим свободный блок
 	if( source.size > size + sizeof( Heading ) ) {
-		LPVOID newBlockAddr = static_cast<byte*>( source.addr ) + size + sizeof(Heading);
+		LPVOID newBlockAddr = static_cast<byte*>( source.addr ) + sizeof(Heading) + size;
 		size_t newSize = source.size - size - sizeof(Heading);
-		Heading newHeading = Heading(getHeadingAddr(source), newSize);
-		addFreeBlock( Block( newBlockAddr, newSize), newHeading);
+		addFreeBlock( Block( newBlockAddr, newSize ), sourceHeading );
 	}
-	freeSmall.erase(source);
-	// В свободном блоке только заголово был закоммичен
-	updatePages(Block(source.addr, sizeof(Heading)), -1);
 	Block bittenBlock = Block(source.addr, size);
-	freeSmall.insert(bittenBlock);
+
+	freeSmall.erase( source );
+	freeSmall.insert( bittenBlock );
 	return bittenBlock;
 }
 
-void CHeapManager::addFreeBlock(const Block block, const Heading heading)
+// Добавляет свободный блок, прописывает его Heading, 
+// обновляет указатель на предыдущий блок в следующем элементе.
+// Блоки должны всегда касаться.
+void CHeapManager::addFreeBlock(const Block block, Heading* previous)
 {
-	// Закоммитятся не закоммиченные страницы
-	ensureBlockIsCommitted(Block(block.addr, sizeof(Heading)));
-	updatePages(Block(block.addr, sizeof(Heading)), 1);
+	// Память для заголовка должна быть закоммичена
+	ensureBlockIsCommitted(Block(block.addr, 0));
+	updatePages(Block(block.addr, 0), PAGES_SUBSCRIBE);
 	freeSmall.insert(block);
+	// Прописываем заголовок
 	Heading* headingAddr = (Heading*)block.addr;
+	headingAddr->blockSize = block.size;
+	headingAddr->prev = previous;
 	Block next = getNext(block);
 	if (next.addr != 0) {
 		getHeadingAddr(next)->prev = getHeadingAddr(block);
 	}
+}
+
+void CHeapManager::allocateBlock( const Block block )
+{
+	// В свободном блоке только заголовок был закоммичен
+	updatePages( Block(block.addr, 0), PAGES_UNSUBSCRIBE);
+	freeSmall.erase( block );
+
+	ensureBlockIsCommitted( block );
+	updatePages( block, PAGES_SUBSCRIBE);
+	allocated.insert( block );
 }
 
 Heading* CHeapManager::getHeadingAddr( const Block block ) const
@@ -166,16 +184,17 @@ Heading* CHeapManager::getHeadingAddr( const Block block ) const
 	return (Heading*) block.addr;
 }
 
-LPVOID CHeapManager::getBody(const Block block) const
+LPVOID CHeapManager::getBlockBodyAddr( const Block block ) const
 {
 	return static_cast<LPVOID>(static_cast<byte*>(block.addr) + sizeof(Heading));
 }
 
+// Возвращает блок, следующий непосредственно за указанным или нулевой блок, если указанный блок был последним
 Block CHeapManager::getNext(const Block block) const
 {
 	// Если это последний блок, то следующего точно нет
-	if( static_cast<byte*> (block.addr) - static_cast<byte*> (heap) + block.size + sizeof(Heading) <= heapSize ) {
-		Heading* nextHeading = (Heading*)(static_cast<byte*> (block.addr) + block.size + sizeof(Heading));
+	if (static_cast<byte*> (block.addr) - static_cast<byte*> (heap) + sizeof(Heading) + block.size + sizeof(Heading) <= heapSize ) {
+		Heading* nextHeading = (Heading*)(static_cast<byte*> (block.addr) + sizeof(Heading) + block.size);
 		return Block(nextHeading, nextHeading->blockSize);
 	} else {
 		return Block(0, 0);

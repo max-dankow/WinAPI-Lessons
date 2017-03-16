@@ -55,13 +55,18 @@ private:
 	Block findSuitableFreeBlock(size_t size);
 	void mergeNext(Heading *block);
 	void ensureBlockIsCommitted(const Block block);
+	void releasePage(LPVOID);
 	void updatePages(const Block block, int sign);
 	Block biteOf(Block source, size_t size);
-	void addFreeBlock(const Block block, const Heading heading);
+	void addFreeBlock(const Block, Heading*);
+	void allocateBlock(const Block);
 	Heading* getHeadingAddr(const Block) const;
-	LPVOID getBody(const Block) const;
+	LPVOID getBlockBodyAddr(const Block) const;
 	Block getNext(const Block) const;
 
+	static const int PAGES_SUBSCRIBE = 1;
+	static const int PAGES_UNSUBSCRIBE = -1;
+	static const int PAGES_TRY_CLEAR = 0;
 	_SYSTEM_INFO systemInfo;
 	LPVOID heap;
 	std::set<Block, BlockComparator> freeSmall;
