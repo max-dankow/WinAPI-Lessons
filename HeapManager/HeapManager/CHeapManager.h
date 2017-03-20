@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <iostream>
 #include <vector>
+#include <array>
 #include <set>
 
 struct Heading {
@@ -25,6 +26,7 @@ struct Block {
 	}
 
 	LPVOID addr;
+	// –азмер без учета заголовков
 	size_t size;
 };
 
@@ -41,7 +43,6 @@ class CHeapManager {
 
 public:
 	CHeapManager();
-	~CHeapManager();
 
 	// –езервирует непрерывный регион пам€ти размером maxSize, 
 	// предоставл€ет блоку minSize физическую пам€ть
@@ -52,26 +53,33 @@ public:
 
 private:
 	static size_t round( size_t value, size_t roundTo );
-	void initializePages();
+	static size_t getSizeType(size_t size);
+	void initializePageUsageCounters();
 	Block findSuitableFreeBlock(size_t size);
 	void mergeNext(Block block);
 	void ensureBlockIsCommitted(const Block block);
 	void releasePage(LPVOID);
 	void updatePages(const Block block, int sign);
-	Block biteOf(Block source, size_t size);
-	void addFreeBlock(const Block, Heading*);
+	Block biteOfNewBlock(const Block source, size_t size);
+	void addFreeBlock(const Block);
 	void allocateBlock(const Block);
 	Heading* getHeadingAddr(const Block) const;
 	LPVOID getBlockBodyAddr(const Block) const;
-	Block getNext(const Block) const;
+	LPVOID getNext(const Block) const;
 
+	static const size_t NUMBER_OF_SIZE_TYPES = 3;
+	static constexpr size_t SIZE_TYPES_LOWER_BOUNDS[NUMBER_OF_SIZE_TYPES] = { 0, 4 * 1024, 128 * 1024 };
 	static const int PAGES_SUBSCRIBE = 1;
 	static const int PAGES_UNSUBSCRIBE = -1;
 	static const int PAGES_TRY_CLEAR = 0;
 	_SYSTEM_INFO systemInfo;
+
+	// јдресс начала кучи
 	LPVOID heap;
-	std::set<Block, BlockComparator> freeSmall;
-	std::set<Block, BlockComparator> allocated;
+
+	// Ќаборы адресов свободных блоков разных разменых классов
+	std::set<Block, BlockComparator> freeBlocks[NUMBER_OF_SIZE_TYPES];
+
 	size_t heapSize;
 	//  оличество блоков на каждой из страниц
 	std::vector<int> pages;
