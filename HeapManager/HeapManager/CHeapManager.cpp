@@ -71,8 +71,19 @@ void CHeapManager::Free( void* mem )
 	updatePages(currentBlock, PAGES_UNSUBSCRIBE);
 }
 
-void CHeapManager::mergeNext( Block block )
+void CHeapManager::Destroy()
 {
+	LPVOID current = heap;
+	while (current != 0) {
+		if (!isFreeHere(current)) {
+			Heading* heading = (Heading*)current;
+			std::cout << "MEMORY LEAK: \t" << heading->blockSize - sizeof(Heading) << "\t at " << std::hex << heading << std::dec << std::endl;
+			Free(static_cast<byte*>(current) + sizeof(Heading));
+			current = heap;
+		} else {
+			current = getNext(Block(current, freeAddresses.at(current)));
+		}
+	}
 }
 
 void CHeapManager::Describe()

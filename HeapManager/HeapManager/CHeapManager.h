@@ -38,13 +38,6 @@ struct BlockComparator {
 	}
 };
 
-struct AddrComparator {
-	bool operator()(Block const & a, Block const & b) const
-	{
-		return a.addr < b.addr;
-	}
-};
-
 
 class CHeapManager {
 
@@ -56,6 +49,7 @@ public:
 	void Create( size_t minSize, size_t maxSize );
 	void* Alloc( size_t size );
 	void Free( void* mem );
+	void Destroy();
 	void Describe();
 
 private:
@@ -63,7 +57,6 @@ private:
 	static size_t getSizeType(size_t size);
 	void initializePageUsageCounters();
 	Block findSuitableFreeBlock(size_t size);
-	void mergeNext(Block block);
 	void ensureBlockIsCommitted(const Block block);
 	void releasePage(LPVOID);
 	void updatePages(const Block block, int sign);
