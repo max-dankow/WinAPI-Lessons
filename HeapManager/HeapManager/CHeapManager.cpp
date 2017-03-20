@@ -50,7 +50,25 @@ void* CHeapManager::Alloc( size_t size )
 
 void CHeapManager::Free( void* mem )
 {
-	
+	// «аголовок удал€емого блока
+	Heading* heading = (Heading*)( static_cast<byte*>(mem) - sizeof(Heading) );
+	Block currentBlock = Block(heading, heading->blockSize);
+	Heading* left = heading->prev;
+	Heading* right = (Heading*) getNext( currentBlock );
+	size_t newTotalSize = heading->blockSize;
+	LPVOID newFreeBlockAddr = heading;
+	// ≈сли слева примыкает свободный блок, то left не 0 по постронию
+	if ( left != 0) {
+		newFreeBlockAddr = left;
+		newTotalSize += (byte*)heading - (byte*)left;
+		removeFreeBlock(Block(left, (byte*)heading - (byte*)left));
+	}
+	if (isFreeHere(right)) {
+		newTotalSize += freeAddresses.at(right);
+		removeFreeBlock(Block(right, freeAddresses.at(right)));
+	}
+	addFreeBlock(Block(newFreeBlockAddr, newTotalSize));
+	updatePages(currentBlock, PAGES_UNSUBSCRIBE);
 }
 
 void CHeapManager::mergeNext( Block block )
@@ -67,6 +85,14 @@ void CHeapManager::Describe()
 			std::cout << "SIZE_TYPE " << sizeType << ": \t" << std::hex << freeBlock.addr << std::dec << '\t' << freeBlock.size << std::endl;
 		}
 	}
+	for (auto pair : freeAddresses) {
+		std::cout << "FREE AT " << " \t" << std::hex << pair.first << std::dec << '\t' << pair.second << std::endl;
+	}
+
+	for (int count : pages) {
+		std::cout << count << ' ';
+	}
+	std::cout << std::endl;
 	std::cout << std::endl;
 }
 
@@ -126,16 +152,16 @@ void CHeapManager::releasePage(LPVOID page)
 
 void CHeapManager::updatePages(const Block block, int operation)
 {
-	assert(operation == PAGES_SUBSCRIBE || operation == PAGES_UNSUBSCRIBE || operation == PAGES_TRY_CLEAR);
+	assert(operation == PAGES_SUBSCRIBE || operation == PAGES_UNSUBSCRIBE);
 	// ќбновление pages
 	size_t offset = static_cast<byte*>(block.addr) - static_cast<byte*>(heap);
 	size_t startPage = offset / systemInfo.dwPageSize;
 	size_t endPage = (offset + block.size) / systemInfo.dwPageSize;
 	for (size_t i = startPage; i <= endPage; ++i) {
-		if( operation == 0 && pages[i] == 0) {
+		pages[i] += operation;
+		assert(pages[i] >= 0);
+		if( pages[i] == 0 ) {
 			releasePage(static_cast<byte*>(heap) + i * systemInfo.dwPageSize);
-		} else {
-			pages[i] += operation;
 		}
 	}
 }
@@ -144,7 +170,7 @@ void CHeapManager::updatePages(const Block block, int operation)
 Block CHeapManager::biteOfNewBlock(const Block source, size_t size)
 {
 	assert(source.size >= size);
-	freeBlocks[getSizeType(source.size)].erase(source);
+	removeFreeBlock(source);
 	// ≈сли после отделени€ нового блока останетс€ свободное место, то добавим еще свободный блок
 	if( source.size > size + sizeof( Heading ) ) {
 		LPVOID newBlockAddr = static_cast<byte*>( source.addr ) + size;
@@ -158,11 +184,18 @@ Block CHeapManager::biteOfNewBlock(const Block source, size_t size)
 void CHeapManager::addFreeBlock( const Block block )
 {
 	freeBlocks[getSizeType(block.size)].insert(block);
+	freeAddresses.insert(std::make_pair(block.addr, block.size));
 	// ќбновим у последующего аллоцированного блока указатель prev
 	Heading* next = (Heading*) getNext(block);
 	if( next != 0 ) {
 		next->prev = (Heading*) block.addr;
 	}
+}
+
+void CHeapManager::removeFreeBlock(const Block block)
+{
+	freeBlocks[getSizeType(block.size)].erase(block);
+	freeAddresses.erase(block.addr);
 }
 
 void CHeapManager::allocateBlock( const Block block )
@@ -190,9 +223,14 @@ LPVOID CHeapManager::getNext( const Block block ) const
 {
 	// ≈сли это последний блок, то следующего точно нет
 	if (static_cast<byte*> (block.addr) - static_cast<byte*> (heap) + block.size + sizeof(Heading) <= heapSize ) {
-		return static_cast<byte*> (heap) + block.size;
+		return static_cast<byte*> (block.addr) + block.size;
 	} else {
 		return 0;
 	}
 	
+}
+
+bool CHeapManager::isFreeHere( LPVOID addr ) const
+{
+	return addr != 0 &&  freeAddresses.find( addr ) != freeAddresses.end();
 }
