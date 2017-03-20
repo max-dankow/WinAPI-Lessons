@@ -48,12 +48,13 @@ public:
 	void Create( size_t minSize, size_t maxSize );
 	void* Alloc( size_t size );
 	void Free( void* mem );
+	void Describe();
 
 private:
 	static size_t round( size_t value, size_t roundTo );
 	void initializePages();
 	Block findSuitableFreeBlock(size_t size);
-	void mergeNext(Heading *block);
+	void mergeNext(Block block);
 	void ensureBlockIsCommitted(const Block block);
 	void releasePage(LPVOID);
 	void updatePages(const Block block, int sign);

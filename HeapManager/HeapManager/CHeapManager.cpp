@@ -54,14 +54,27 @@ void* CHeapManager::Alloc( size_t size )
 
 void CHeapManager::Free( void* mem )
 {
-	Heading* heading = (Heading*)(static_cast<byte*> (mem) - sizeof(Heading));
-	Block currentBlock = Block(heading, heading->blockSize);
-	allocated.erase(currentBlock);
 	
-	Heading* left = heading->prev;
-	Block rightBlock = getNext(currentBlock);
+}
 
+void CHeapManager::mergeNext( Block block )
+{
+}
 
+void CHeapManager::Describe()
+{
+	std::cout << "Heap address: " << std::hex << heap << std::dec << std::endl;
+	std::cout << "Heap size: " << heapSize << "(" << heapSize / systemInfo.dwPageSize << " pages)" << std::endl;
+
+	for( Block freeBlock : freeSmall ) {
+		std::cout << "Small free block: \t" << std::hex << freeBlock.addr << std::dec << '\t' << freeBlock.size << std::endl;
+	}
+
+	for (Block allocatedBlock : allocated) {
+		std::cout << "Allocated block: \t" << std::hex << allocatedBlock.addr << std::dec << '\t' << allocatedBlock.size << std::endl;
+	}
+
+	std::cout << std::endl;
 }
 
 // Округляет value до числа кратного roundTo
@@ -85,19 +98,6 @@ Block CHeapManager::findSuitableFreeBlock( size_t size )
 		}
 	}
 	return Block(0, 0);
-}
-
-void CHeapManager::mergeNext(Heading *block)
-{
-	/*if( block->next != NULL && block->next->isFree ) {
-		block->blockSize += block->next->blockSize + sizeof(Heading);
-
-		if( block->next->next != NULL ) {
-			block->next->next->prev = block;
-		}
-
-		block->next = block->next->next;
-	}*/
 }
 
 // Обеспечивает блок закоммиченной памятью

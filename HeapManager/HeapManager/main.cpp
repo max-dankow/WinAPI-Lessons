@@ -14,7 +14,11 @@ void Demo1()
 	CHeapManager heapManager;
 	heapManager.Create(pageSize, heapSize);
 	heapManager.Alloc(5000);
-	heapManager.Alloc(50);
+	heapManager.Describe();
+	LPVOID ptr2 = heapManager.Alloc(50);
+	heapManager.Describe();
+	heapManager.Free(ptr2);
+	heapManager.Describe();
 }
 
 int main()
