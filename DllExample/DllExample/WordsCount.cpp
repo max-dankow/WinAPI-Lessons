@@ -1,5 +1,6 @@
 #include <exception>
 
+// Из этого модуля экспортируем
 #define WORDS_COUNT_LIB extern "C" __declspec(dllexport)
 
 #include "WordsCount.h"
@@ -7,26 +8,24 @@
 #include <cctype>
 #include <iostream>
 
-int WordsCount( const wchar_t * textPtr )
+int WordsCount( const wchar_t * text )
 {
-    if( textPtr == 0 ) {
+    if( text == 0 ) {
         return 0;
     }
-    std::wstring text(textPtr);
-    std::wcout << text << std::endl;
     bool isWordStarted = false;
     int wordCount = 0;
-    for (wchar_t ch : text) {
-        if (islower(tolower(ch))) {
+    for (size_t i = 0; text[i] != 0; ++i) {
+        if( islower( tolower( text[i] ) ) ) {
             isWordStarted = true;
         } else {
-            if (isWordStarted) {
+            if( isWordStarted ) {
                 wordCount++;
             }
             isWordStarted = false;
         }
     }
-    if (isWordStarted) {
+    if ( isWordStarted ) {
         wordCount++;
     }
     
