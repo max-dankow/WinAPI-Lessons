@@ -58,3 +58,7 @@
 /DllExample/ImplicitDynamic/Debug
 /DllExample/ImplicitDynamic/Release
 /DllExample/unicode_text.txt
+/DllExample/DllExample/DllExample.vcxproj.user
+/DllExample/ExplicitDynamic/ExplicitDynamic.vcxproj.user
+*.pdb
+*.idb
