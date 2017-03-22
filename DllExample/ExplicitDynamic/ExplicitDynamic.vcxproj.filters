@@ -19,7 +19,7 @@
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="..\Utils\Utils.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>Заголовочные файлы</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

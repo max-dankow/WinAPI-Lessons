@@ -54,3 +54,7 @@
 /DllExample/Release
 /DllExample/WordsCountImporter/Debug
 /DllExample/WordsCountImporter/Release
+/DllExample/ExplicitDynamic/Debug
+/DllExample/ImplicitDynamic/Debug
+/DllExample/ImplicitDynamic/Release
+/DllExample/unicode_text.txt
