@@ -16,7 +16,7 @@ int WordsCount( const wchar_t * text )
     bool isWordStarted = false;
     int wordCount = 0;
     for (size_t i = 0; text[i] != L'\0'; ++i) {
-        if( iswlower( towlower( text[i] ) ) ) {
+        if( iswalpha( text[i] ) ) {
             isWordStarted = true;
         } else {
             if( isWordStarted ) {
