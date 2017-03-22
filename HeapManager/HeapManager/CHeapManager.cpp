@@ -64,8 +64,9 @@ void CHeapManager::Free( void* mem )
 		removeFreeBlock(Block(left, (byte*)heading - (byte*)left));
 	}
 	if (isFreeHere(right)) {
-		newTotalSize += freeAddresses.at(right);
-		removeFreeBlock(Block(right, freeAddresses.at(right)));
+        size_t sizeAtRight = freeAddresses.at(right);
+		newTotalSize += sizeAtRight;
+		removeFreeBlock(Block(right, sizeAtRight));
 	}
 	addFreeBlock(Block(newFreeBlockAddr, newTotalSize));
 	updatePages(currentBlock, PAGES_UNSUBSCRIBE);
@@ -156,9 +157,9 @@ void CHeapManager::ensureBlockIsCommitted(const Block block)
 	}
 }
 
-void CHeapManager::releasePage(LPVOID page)
+void CHeapManager::releasePage(LPVOID start, size_t size)
 {
-	VirtualFree(page, systemInfo.dwPageSize, MEM_DECOMMIT);
+	VirtualFree(start, size, MEM_DECOMMIT);
 }
 
 void CHeapManager::updatePages(const Block block, int operation)
@@ -168,12 +169,23 @@ void CHeapManager::updatePages(const Block block, int operation)
 	size_t offset = static_cast<byte*>(block.addr) - static_cast<byte*>(heap);
 	size_t startPage = offset / systemInfo.dwPageSize;
 	size_t endPage = (offset + block.size) / systemInfo.dwPageSize;
+
+    int startOfReleasing;
+    bool isInReleasingFragment = false;
 	for (size_t i = startPage; i <= endPage; ++i) {
 		pages[i] += operation;
-		assert(pages[i] >= 0);
 		if( pages[i] == 0 ) {
-			releasePage(static_cast<byte*>(heap) + i * systemInfo.dwPageSize);
-		}
+            if (!isInReleasingFragment) {
+                startOfReleasing = i;
+            }
+            isInReleasingFragment = true;
+        } else {
+            if (isInReleasingFragment) {
+                size_t size = (i - startOfReleasing) * systemInfo.dwPageSize;
+                releasePage(static_cast<byte*>(heap) + startOfReleasing * systemInfo.dwPageSize, size);
+            }
+            isInReleasingFragment = false;
+        }
 	}
 }
 

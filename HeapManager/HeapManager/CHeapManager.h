@@ -58,7 +58,7 @@ private:
 	void initializePageUsageCounters();
 	Block findSuitableFreeBlock(size_t size);
 	void ensureBlockIsCommitted(const Block block);
-	void releasePage(LPVOID);
+	void releasePage(LPVOID start, size_t size);
 	void updatePages(const Block block, int sign);
 	Block biteOfNewBlock(const Block source, size_t size);
 	void addFreeBlock(const Block);
