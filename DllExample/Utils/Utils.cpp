@@ -33,6 +33,7 @@ std::wstring ReadTextFile(const std::wstring &path)
     DWORD numberOfBytesRead;
 
     if (!ReadFile(fileHandle, buffer, fileSize, &numberOfBytesRead, 0) || numberOfBytesRead != fileSize) {
+        CloseHandle(fileHandle);
         throw std::runtime_error("Fail to read file");
     }
 
