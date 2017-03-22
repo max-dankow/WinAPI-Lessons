@@ -62,3 +62,4 @@
 /DllExample/ExplicitDynamic/ExplicitDynamic.vcxproj.user
 *.pdb
 *.idb
+DllExample/unicode_text.txt
