@@ -20,8 +20,8 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{54137CFD-0697-4ECD-A863-A4B31C99A79D}</ProjectGuid>
-    <RootNamespace>WordsCountImporter</RootNamespace>
+    <ProjectGuid>{24B20007-DA5F-4C37-923C-33410E45AEDF}</ProjectGuid>
+    <RootNamespace>ImplicitDynamic</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -112,9 +112,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\DllExample\WordsCount.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DllExample\DllExample.vcxproj">
