@@ -134,15 +134,21 @@ void CHeapManager::initializePageUsageCounters()
 // ѕроходит по списку блоков и находит подход€щее место размера size
 Block CHeapManager::findSuitableFreeBlock( size_t size )
 {
+    Block minimumBlock = Block(0, size);
 	// ћинимальный допустимый тип размера
 	size_t minSizeType = getSizeType( size );
 	// ≈сли не найдем подход€щего блока желаемого размера, придетс€ искать среди более крупных
 	for( size_t type = minSizeType; type < NUMBER_OF_SIZE_TYPES; ++type ) {
-		for (auto blockIter = freeBlocks[type].begin(); blockIter != freeBlocks[type].end(); ++blockIter) {
-			if (blockIter->size >= size) {
-				return *blockIter;
-			}
-		}
+        auto candidate = freeBlocks[type].lower_bound(minimumBlock);
+        if (candidate != freeBlocks[type].end()) {
+            assert(candidate->size >= size);
+            return *candidate;
+        }
+		//for (auto blockIter = freeBlocks[type].begin(); blockIter != freeBlocks[type].end(); ++blockIter) {
+		//	if (blockIter->size >= size) {
+		//		return *blockIter;
+		//	}
+		//}
 	}
 	return Block(0, 0);
 }
