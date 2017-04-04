@@ -20,11 +20,10 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{A95F0060-3174-43B5-8774-ABE458D28B0E}</ProjectGuid>
+    <ProjectGuid>{D2C94D71-BDBE-41CD-81FA-A626D4406C2E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>Workers</RootNamespace>
+    <RootNamespace>FilterText</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
-    <ProjectName>Worker</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -141,7 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Utils\Utils.cpp" />
-    <ClCompile Include="Worker.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Utils\Utils.h" />

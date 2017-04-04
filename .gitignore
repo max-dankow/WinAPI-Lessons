@@ -63,3 +63,7 @@
 *.pdb
 *.idb
 DllExample/unicode_text.txt
+*.ilk
+*.enc
+*.db-shm
+*.db-wal

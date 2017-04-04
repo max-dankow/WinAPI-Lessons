@@ -6,6 +6,8 @@
 #include <exception>
 #include <codecvt>
 
+#include "../Utils/Utils.h"
+
 std::set<std::wstring> ReadDictionary(const std::wstring &fileName) {
     std::wifstream inputFile(fileName, std::wifstream::in);
 
@@ -24,18 +26,6 @@ std::set<std::wstring> ReadDictionary(const std::wstring &fileName) {
     }
 }
 
-std::wstring GetDictionaryPathFromArgs()
-{
-    int argc;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argc < 2) {
-        throw std::invalid_argument("There should be a path to unicode dictionary file as argument");
-    }
-    else {
-        return std::wstring(argv[1]);
-    }
-}
-
 void PrintDictionary(const std::set<std::wstring> &dictionary) {
     std::wcout << "Dictionary:" << std::endl;
     for (std::wstring word : dictionary) {
@@ -43,10 +33,9 @@ void PrintDictionary(const std::set<std::wstring> &dictionary) {
     }
 }
 
-
 int main(int argc, char* argv[]) {
+    std::cerr << "Worker here!" << std::endl;
     std::set<std::wstring> dictionary = ReadDictionary(GetDictionaryPathFromArgs());
     PrintDictionary(dictionary);
-    std::cin.ignore();
     return 0;
 }
