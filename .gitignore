@@ -67,3 +67,5 @@ DllExample/unicode_text.txt
 *.enc
 *.db-shm
 *.db-wal
+*.ipdb
+*.iobj

@@ -5,6 +5,7 @@
 #include <string>
 #include <exception>
 #include <codecvt>
+#include <assert.h>
 
 #include "../Utils/Utils.h"
 
@@ -33,9 +34,20 @@ void PrintDictionary(const std::set<std::wstring> &dictionary) {
     }
 }
 
+HANDLE GetParentTerminationHandle()
+{
+    int argc;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    assert(argc >= 3);
+    return reinterpret_cast<HANDLE> (std::stoi(argv[2]));
+}
+
 int main(int argc, char* argv[]) {
     std::cerr << "Worker here!" << std::endl;
     std::set<std::wstring> dictionary = ReadDictionary(GetDictionaryPathFromArgs());
-    PrintDictionary(dictionary);
+    HANDLE terminationEvent = GetParentTerminationHandle();
+    std::cerr << terminationEvent << std::endl;
+    WaitForSingleObject(terminationEvent, INFINITE);
+    std::cerr << "THE END!\n";
     return 0;
 }

@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Worker", "Workers\Workers.vcxproj", "{A95F0060-3174-43B5-8774-ABE458D28B0E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FilterText", "FilterText\FilterText.vcxproj", "{D2C94D71-BDBE-41CD-81FA-A626D4406C2E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A95F0060-3174-43B5-8774-ABE458D28B0E} = {A95F0060-3174-43B5-8774-ABE458D28B0E}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
