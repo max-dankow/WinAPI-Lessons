@@ -4,34 +4,37 @@
 #include <iostream>
 #include <memory>
 
-#include "../Utils/Utils.h" 
+#include "../Utils/Utils.h"
 
 class CWorker {
 public:
-    CWorker(const HANDLE processHandle, const HANDLE terminationEvent) :
-        processHandle(processHandle),
-        terminationEvent(terminationEvent) {}
-
-    HANDLE GetProcessHandle() const {
-        return processHandle;
+    CWorker(const PROCESS_INFORMATION processInfo, const HANDLE terminationEvent) :
+        processInfo(processInfo),
+        terminationEvent(terminationEvent) {
+        dataIsReadyEvent = GetDataIsReadyEvent(processInfo.dwProcessId);
     }
 
     HANDLE GetTerminationEvent() const {
         return terminationEvent;
     }
 
+    void Notify() {
+        SetEvent(dataIsReadyEvent);
+    }
+
     void Join() {
-        if (processHandle != INVALID_HANDLE_VALUE) {
-            WaitForSingleObject(processHandle, INFINITE);
-            CloseHandle(processHandle);
-            processHandle = INVALID_HANDLE_VALUE;
+        if (processInfo.hProcess != INVALID_HANDLE_VALUE) {
+            WaitForSingleObject(processInfo.hProcess, INFINITE);
+            CloseHandle(processInfo.hProcess);
+            processInfo.hProcess = INVALID_HANDLE_VALUE;
         } else {
-            throw std::runtime_error("Trying to join not created or joined worker");
+            throw std::runtime_error("Trying to join already joined or not created worker");
         }
     }
 
 private:
-    HANDLE processHandle, terminationEvent;
+    PROCESS_INFORMATION processInfo;
+    HANDLE terminationEvent, dataIsReadyEvent;
 };
 
 HANDLE CreateTerminationEvent()
@@ -40,7 +43,7 @@ HANDLE CreateTerminationEvent()
     attributes.nLength = sizeof(attributes);
     attributes.lpSecurityDescriptor = NULL;
     attributes.bInheritHandle = TRUE;
-    HANDLE terminationEvent = CreateEvent(&attributes, TRUE, FALSE, L"ru.mipt.diht.dankovtsev.workers.terminate");
+    HANDLE terminationEvent = CreateEvent(&attributes, TRUE, FALSE, 0);
     if (terminationEvent == INVALID_HANDLE_VALUE) {
         throw std::runtime_error("Failed to create event");
     }
@@ -70,7 +73,7 @@ std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dic
         if (CreateProcess(0, cArguments.get(), 0, 0, TRUE, 0, 0, 0, &startUpInfo, &processInfo) != 0) {
             std::cerr << "Process created " << processInfo.dwProcessId << std::endl;
             CloseHandle(processInfo.hThread);
-            CWorker worker(processInfo.hProcess, terminationEvent);
+            CWorker worker(processInfo, terminationEvent);
             workers.push_back(worker);
         } else {
             DWORD lerr = GetLastError();
@@ -90,6 +93,8 @@ void JoinWorkers(std::vector<CWorker> &workers)
 int main(int argc, char* argv[]) {
     try {
         auto workers = InitWorkers(4, GetDictionaryPathFromArgs());
+        std::cin.ignore();
+        workers[0].Notify();
         std::cin.ignore();
         SetEvent(workers[0].GetTerminationEvent());
         JoinWorkers(workers);

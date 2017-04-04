@@ -46,8 +46,11 @@ int main(int argc, char* argv[]) {
     std::cerr << "Worker here!" << std::endl;
     std::set<std::wstring> dictionary = ReadDictionary(GetDictionaryPathFromArgs());
     HANDLE terminationEvent = GetParentTerminationHandle();
-    std::cerr << terminationEvent << std::endl;
+    HANDLE dataIsReadyEvent = GetDataIsReadyEvent(GetCurrentProcessId());
+    std::cerr << "Wait for job" << std::endl;
+    WaitForSingleObject(dataIsReadyEvent, INFINITE);
+    std::cerr << "Working HARD!" << std::endl;
     WaitForSingleObject(terminationEvent, INFINITE);
-    std::cerr << "THE END!\n";
+    std::cerr << "terminating!\n";
     return 0;
 }
