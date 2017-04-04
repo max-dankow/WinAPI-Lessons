@@ -29,3 +29,13 @@ HANDLE GetDataIsReadyEvent(DWORD processId)
     }
     return dataIsReadyEvent;
 }
+
+HANDLE GetWorkIsDoneEvent(DWORD processId)
+{
+    auto name = GenerateName(processId, L"WorkIsDone");
+    auto workIsDoneEvent = CreateEvent(0, FALSE, FALSE, name.c_str());
+    if (workIsDoneEvent == INVALID_HANDLE_VALUE) {
+        throw std::runtime_error("Failed to create event");
+    }
+    return workIsDoneEvent;
+}

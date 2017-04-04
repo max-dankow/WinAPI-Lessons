@@ -3,8 +3,11 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <assert.h>
 
 #include "../Utils/Utils.h"
+
+static const int NumberOfThreads = 4;
 
 class CWorker {
 public:
@@ -12,6 +15,7 @@ public:
         processInfo(processInfo),
         terminationEvent(terminationEvent) {
         dataIsReadyEvent = GetDataIsReadyEvent(processInfo.dwProcessId);
+        workIsDoneEvent = GetWorkIsDoneEvent(processInfo.dwProcessId);
     }
 
     HANDLE GetTerminationEvent() const {
@@ -20,6 +24,10 @@ public:
 
     void Notify() {
         SetEvent(dataIsReadyEvent);
+    }
+
+    HANDLE OnWorkIsDoneEvent() const {
+        return workIsDoneEvent;
     }
 
     void Join() {
@@ -34,7 +42,7 @@ public:
 
 private:
     PROCESS_INFORMATION processInfo;
-    HANDLE terminationEvent, dataIsReadyEvent;
+    HANDLE terminationEvent, dataIsReadyEvent, workIsDoneEvent;
 };
 
 HANDLE CreateTerminationEvent()
@@ -53,7 +61,7 @@ HANDLE CreateTerminationEvent()
 std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dictionaryPath) 
 {
     std::vector<CWorker> workers;
-    if (numberOfWorkers <= 1) {
+    if (numberOfWorkers < 1) {
         return workers;
     }
 
@@ -90,12 +98,26 @@ void JoinWorkers(std::vector<CWorker> &workers)
     }
 }
 
+void WaitForResults(const std::vector<CWorker> &workers)
+{
+    auto awaitedEvents = std::make_unique<HANDLE[]>((workers.size()));
+    for (size_t i = 0; i < workers.size(); ++i) {
+        awaitedEvents.get()[i] = workers[i].OnWorkIsDoneEvent();
+    }
+    DWORD waitResult = WaitForMultipleObjects(workers.size(), awaitedEvents.get(), TRUE, INFINITE);
+    assert(waitResult != WAIT_FAILED && waitResult != WAIT_TIMEOUT);
+    std::cerr << "Accepted" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
     try {
-        auto workers = InitWorkers(4, GetDictionaryPathFromArgs());
+        auto workers = InitWorkers(NumberOfThreads, GetDictionaryPathFromArgs());
         std::cin.ignore();
-        workers[0].Notify();
+        for (CWorker &worker : workers) {
+            worker.Notify();
+        }
         std::cin.ignore();
+        WaitForResults(workers);
         SetEvent(workers[0].GetTerminationEvent());
         JoinWorkers(workers);
         std::cin.ignore();

@@ -47,10 +47,25 @@ int main(int argc, char* argv[]) {
     std::set<std::wstring> dictionary = ReadDictionary(GetDictionaryPathFromArgs());
     HANDLE terminationEvent = GetParentTerminationHandle();
     HANDLE dataIsReadyEvent = GetDataIsReadyEvent(GetCurrentProcessId());
-    std::cerr << "Wait for job" << std::endl;
-    WaitForSingleObject(dataIsReadyEvent, INFINITE);
-    std::cerr << "Working HARD!" << std::endl;
-    WaitForSingleObject(terminationEvent, INFINITE);
-    std::cerr << "terminating!\n";
-    return 0;
+    HANDLE workIsDoneEvent = GetWorkIsDoneEvent(GetCurrentProcessId());
+
+    while (true) {
+        HANDLE awaitedEvents[2] = { dataIsReadyEvent, terminationEvent };
+        std::cerr << "Wait for job" << std::endl;
+        DWORD waitResult = WaitForMultipleObjects(2, awaitedEvents, FALSE, INFINITE);
+        switch (waitResult) {
+        case WAIT_FAILED:
+        case WAIT_TIMEOUT:
+            assert(false);
+        case WAIT_OBJECT_0 + 0:
+            // Появилсь работа
+            std::cerr << "Working HARD!" << std::endl;
+            SetEvent(workIsDoneEvent);
+            break;
+        case WAIT_OBJECT_0 + 1:
+            // Завершение работы
+            std::cerr << "terminate\n";
+            return 0;
+        }
+    }
 }
