@@ -47,8 +47,28 @@ std::wstring GetSourceWString()
     return std::wstring(reinterpret_cast<wchar_t*>(mappedFilePtr));
 }
 
-void DoJob() {
+void TheStupidestFilter(const std::wstring &source, const std::set<std::wstring> &dictioinary) {
+    size_t i = 0;
+    while (i < source.length()) {
+        bool isGoodWord = true;
+        for (const std::wstring &word : dictioinary) {
+            if (i + word.length() <= source.length() && source.substr(i, word.length()) == word) {
+                i += word.length();
+                isGoodWord = false;
+                break;
+            }
+        }
+        if (isGoodWord) {
+            std::wcout << source.at(i);
+            ++i;
+        }
+    }
+    std::cout << std::endl;
+}
+
+void DoJob(const std::set<std::wstring> &dictioinary) {
     std::wcerr << L"Working HARD! Unicode suck" << std::endl;
+    TheStupidestFilter(GetSourceWString(), dictioinary);
 }
 
 int main(int argc, char* argv[]) {
@@ -68,7 +88,7 @@ int main(int argc, char* argv[]) {
             assert(false);
         case WAIT_OBJECT_0 + 0:
             // Появилсь работа
-            DoJob();
+            DoJob(dictionary);
             SetEvent(workIsDoneEvent);
             break;
         case WAIT_OBJECT_0 + 1:
