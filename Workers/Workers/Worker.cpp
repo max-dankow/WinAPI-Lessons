@@ -34,24 +34,33 @@ void PrintDictionary(const std::set<std::wstring> &dictionary) {
     }
 }
 
-HANDLE GetParentTerminationHandle()
+std::wstring GetSourceWString()
 {
-    int argc;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    assert(argc >= 3);
-    return reinterpret_cast<HANDLE> (std::stoi(argv[2]));
+    HANDLE mappingHandle = GetHandleFromArguments(3, "Source mapping handle");
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ, 0, 0, 0);
+    if (mappedFilePtr == 0) {
+        throw std::runtime_error("Fail to map file");
+    }
+    int offset = GetIntFromArguments(4, "Offset");
+    int size = GetIntFromArguments(5, "Size");
+
+    return std::wstring(reinterpret_cast<wchar_t*>(mappedFilePtr));
+}
+
+void DoJob() {
+    std::wcerr << L"Working HARD! Unicode suck" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
-    std::cerr << "Worker here!" << std::endl;
-    std::set<std::wstring> dictionary = ReadDictionary(GetDictionaryPathFromArgs());
-    HANDLE terminationEvent = GetParentTerminationHandle();
+    std::wcerr << L"Worker here!" << std::endl;
+    std::set<std::wstring> dictionary = ReadDictionary(GetWStringFromArguments(1, "Dictionary file path"));
+    HANDLE terminationEvent =  GetHandleFromArguments(2, "Termination Event");
     HANDLE dataIsReadyEvent = GetDataIsReadyEvent(GetCurrentProcessId());
     HANDLE workIsDoneEvent = GetWorkIsDoneEvent(GetCurrentProcessId());
 
     while (true) {
         HANDLE awaitedEvents[2] = { dataIsReadyEvent, terminationEvent };
-        std::cerr << "Wait for job" << std::endl;
+        std::wcerr << L"Wait for job" << std::endl;
         DWORD waitResult = WaitForMultipleObjects(2, awaitedEvents, FALSE, INFINITE);
         switch (waitResult) {
         case WAIT_FAILED:
@@ -59,12 +68,12 @@ int main(int argc, char* argv[]) {
             assert(false);
         case WAIT_OBJECT_0 + 0:
             // Появилсь работа
-            std::cerr << "Working HARD!" << std::endl;
+            DoJob();
             SetEvent(workIsDoneEvent);
             break;
         case WAIT_OBJECT_0 + 1:
             // Завершение работы
-            std::cerr << "terminate\n";
+            std::wcerr << L"terminate\n";
             return 0;
         }
     }

@@ -7,7 +7,7 @@
 
 #include "../Utils/Utils.h"
 
-static const int NumberOfThreads = 4;
+static const int NumberOfThreads = 1;
 
 class CWorker {
 public:
@@ -45,6 +45,12 @@ private:
     HANDLE terminationEvent, dataIsReadyEvent, workIsDoneEvent;
 };
 
+struct CMappedFile {
+    HANDLE fileHandle, mappingHandle;
+    PVOID mappedFilePtr;
+    size_t size;
+};
+
 HANDLE CreateTerminationEvent()
 {
     SECURITY_ATTRIBUTES attributes;
@@ -58,7 +64,7 @@ HANDLE CreateTerminationEvent()
     return terminationEvent;
 }
 
-std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dictionaryPath) 
+std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dictionaryPath, const CMappedFile &source) 
 {
     std::vector<CWorker> workers;
     if (numberOfWorkers < 1) {
@@ -71,7 +77,10 @@ std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dic
     for (size_t i = 0; i < numberOfWorkers; ++i) {
         std::wstring arguments = workerPath.append(L" ")
             .append(dictionaryPath).append(L" ")
-            .append(std::to_wstring(reinterpret_cast<int> (terminationEvent)));
+            .append(std::to_wstring(reinterpret_cast<int> (terminationEvent))).append(L" ")
+            .append(std::to_wstring(reinterpret_cast<int> (source.mappingHandle))).append(L" ")
+            .append(std::to_wstring(0)).append(L" ") // начало области файла, назначенной процессу
+            .append(std::to_wstring(source.size));
 
         auto cArguments = std::make_unique<wchar_t[]>(arguments.length() + 1);
         wcscpy(cArguments.get(), arguments.c_str());
@@ -109,9 +118,43 @@ void WaitForResults(const std::vector<CWorker> &workers)
     std::cerr << "Accepted" << std::endl;
 }
 
+CMappedFile OpenAndMapFile(const std::wstring &filePath)
+{
+    HANDLE fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (fileHandle == INVALID_HANDLE_VALUE) {
+        throw std::runtime_error("Can't open file. Error code");
+    }
+
+    SECURITY_ATTRIBUTES attributes;
+    attributes.nLength = sizeof(attributes);
+    attributes.lpSecurityDescriptor = NULL;
+    attributes.bInheritHandle = TRUE;
+    HANDLE mappingHandle = CreateFileMapping(fileHandle, &attributes, PAGE_READONLY, 0, 0, 0);
+    if (mappingHandle == 0) {
+        throw std::runtime_error("Fail to create file mapping");
+    }
+
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ, 0, 0, 0);
+    if (mappedFilePtr == 0) {
+        throw std::runtime_error("Fail to map file");
+    }
+    DWORD fileSize = GetFileSize(fileHandle, &fileSize);
+    return {fileHandle, mappingHandle, mappedFilePtr, fileSize};
+}
+
+void OnTerminate(CMappedFile &mappedFile)
+{
+    CloseHandle(mappedFile.fileHandle);
+    CloseHandle(mappedFile.mappingHandle);
+    UnmapViewOfFile(mappedFile.mappedFilePtr);
+}
+
 int main(int argc, char* argv[]) {
     try {
-        auto workers = InitWorkers(NumberOfThreads, GetDictionaryPathFromArgs());
+        std::wstring sourceFilePath;
+        auto mappedSource = OpenAndMapFile(GetWStringFromArguments(2, "Source file path"));
+        auto str = reinterpret_cast<wchar_t*>(mappedSource.mappedFilePtr);
+        auto workers = InitWorkers(NumberOfThreads, GetArgument(1, "Dictionary file path"), mappedSource);
         std::cin.ignore();
         for (CWorker &worker : workers) {
             worker.Notify();
@@ -120,6 +163,7 @@ int main(int argc, char* argv[]) {
         WaitForResults(workers);
         SetEvent(workers[0].GetTerminationEvent());
         JoinWorkers(workers);
+        OnTerminate(mappedSource);
         std::cin.ignore();
         return 0;
     } catch (std::exception e) {

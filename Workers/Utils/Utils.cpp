@@ -3,16 +3,30 @@
 
 static const std::wstring NamePrefix(L"ru.mipt.diht.dankovtsev.workers.");
 
-std::wstring GetDictionaryPathFromArgs()
+std::wstring GetArgument(size_t index, const std::string &what)
 {
     int argc;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argc < 2) {
-        throw std::invalid_argument("There should be a path to unicode dictionary file as argument");
+    if (argc < index + 1) {
+        throw std::invalid_argument(std::string(what).append(" expetced as argument"));
+    } else {
+        return std::wstring(argv[index]);
     }
-    else {
-        return std::wstring(argv[1]);
-    }
+}
+
+std::wstring GetWStringFromArguments(size_t index, const std::string &what)
+{
+    return GetArgument(index, what);
+}
+
+int GetIntFromArguments(size_t index, const std::string &what)
+{
+    return std::stoi(GetArgument(index, what));
+}
+
+HANDLE GetHandleFromArguments(size_t index, const std::string &what)
+{
+    return reinterpret_cast<HANDLE> (GetIntFromArguments(index, what));
 }
 
 std::wstring GenerateName(DWORD processId, const std::wstring &type)
