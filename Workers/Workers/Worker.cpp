@@ -37,7 +37,7 @@ void PrintDictionary(const std::set<std::wstring> &dictionary) {
 std::wstring GetSourceWString()
 {
     HANDLE mappingHandle = GetHandleFromArguments(3, "Source mapping handle");
-    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ, 0, 0, 0);
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ |FILE_MAP_WRITE, 0, 0, 0);
     if (mappedFilePtr == 0) {
         throw std::runtime_error("Fail to map file");
     }

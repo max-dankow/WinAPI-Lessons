@@ -120,7 +120,7 @@ void WaitForResults(const std::vector<CWorker> &workers)
 
 CMappedFile OpenAndMapFile(const std::wstring &filePath)
 {
-    HANDLE fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (fileHandle == INVALID_HANDLE_VALUE) {
         throw std::runtime_error("Can't open file. Error code");
     }
@@ -129,12 +129,12 @@ CMappedFile OpenAndMapFile(const std::wstring &filePath)
     attributes.nLength = sizeof(attributes);
     attributes.lpSecurityDescriptor = NULL;
     attributes.bInheritHandle = TRUE;
-    HANDLE mappingHandle = CreateFileMapping(fileHandle, &attributes, PAGE_READONLY, 0, 0, 0);
+    HANDLE mappingHandle = CreateFileMapping(fileHandle, &attributes, PAGE_READWRITE, 0, 0, 0);
     if (mappingHandle == 0) {
         throw std::runtime_error("Fail to create file mapping");
     }
 
-    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ, 0, 0, 0);
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
     if (mappedFilePtr == 0) {
         throw std::runtime_error("Fail to map file");
     }
