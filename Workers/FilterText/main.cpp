@@ -7,13 +7,14 @@
 
 #include "../Utils/Utils.h"
 
-static const int NumberOfThreads = 1;
+static const int NumberOfProcesses = 4;
 
 class CWorker {
 public:
-    CWorker(const PROCESS_INFORMATION processInfo, const HANDLE terminationEvent) :
+    CWorker(const PROCESS_INFORMATION processInfo, const HANDLE terminationEvent, CMappedFile mappedFile) :
         processInfo(processInfo),
-        terminationEvent(terminationEvent) {
+        terminationEvent(terminationEvent),
+        mappedFile(mappedFile) {
         dataIsReadyEvent = GetDataIsReadyEvent(processInfo.dwProcessId);
         workIsDoneEvent = GetWorkIsDoneEvent(processInfo.dwProcessId);
     }
@@ -40,15 +41,14 @@ public:
         }
     }
 
+    std::wstring GetResult() const {
+        return std::wstring(reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr));
+    }
+
 private:
     PROCESS_INFORMATION processInfo;
     HANDLE terminationEvent, dataIsReadyEvent, workIsDoneEvent;
-};
-
-struct CMappedFile {
-    HANDLE fileHandle, mappingHandle;
-    PVOID mappedFilePtr;
-    size_t size;
+    CMappedFile mappedFile;
 };
 
 HANDLE CreateTerminationEvent()
@@ -64,6 +64,34 @@ HANDLE CreateTerminationEvent()
     return terminationEvent;
 }
 
+size_t GetTaskSize(int processIndex, const CMappedFile &source, size_t &offset)
+{
+    size_t taskSize = ((source.size) / 2 / NumberOfProcesses) * 2;
+    if (processIndex + 1 == NumberOfProcesses || source.size - offset < taskSize) {
+        taskSize = source.size - offset;
+        return taskSize;
+    }
+    while (reinterpret_cast<wchar_t*>(source.mappedFilePtr)[(taskSize + offset) / 2] != L' ' && taskSize + offset < source.size) {
+        taskSize += sizeof(wchar_t);
+    }
+    
+    return taskSize;
+}
+
+CMappedFile PrepareSharedMem(DWORD processId, int processIndex, const CMappedFile &source, size_t &offset) {
+    size_t taskSize = GetTaskSize(processIndex, source, offset);
+    HANDLE mappingHandle = GetSourceMapping(processId, taskSize + sizeof(L'\0'));
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
+    if (mappedFilePtr == 0) {
+        throw std::runtime_error("Fail to map file");
+    }
+    //todo: ну тут вообще полный ппц
+    std::wcsncpy(reinterpret_cast<wchar_t*>(mappedFilePtr), reinterpret_cast<wchar_t*>(source.mappedFilePtr) + offset / 2, taskSize / 2);
+    reinterpret_cast<wchar_t*>(mappedFilePtr)[taskSize / 2] = L'\0';
+    offset += taskSize;
+    return { 0, mappingHandle, mappedFilePtr, taskSize + 2 };
+}
+
 std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dictionaryPath, const CMappedFile &source) 
 {
     std::vector<CWorker> workers;
@@ -73,14 +101,15 @@ std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dic
 
     std::wstring workerPath(L"Worker.exe");
     HANDLE terminationEvent = CreateTerminationEvent();
+    // Смещение в исхожном файле, изменяется в процессе раздачи заданий
+    size_t offset = 0;
     
     for (size_t i = 0; i < numberOfWorkers; ++i) {
+        auto taskSize = GetTaskSize(i, source, offset);
         std::wstring arguments = workerPath.append(L" ")
             .append(dictionaryPath).append(L" ")
             .append(std::to_wstring(reinterpret_cast<int> (terminationEvent))).append(L" ")
-            .append(std::to_wstring(reinterpret_cast<int> (source.mappingHandle))).append(L" ")
-            .append(std::to_wstring(0)).append(L" ") // начало области файла, назначенной процессу
-            .append(std::to_wstring(source.size));
+            .append(std::to_wstring(taskSize)); // so bad to do it, no sence(
 
         auto cArguments = std::make_unique<wchar_t[]>(arguments.length() + 1);
         wcscpy(cArguments.get(), arguments.c_str());
@@ -90,7 +119,8 @@ std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dic
         if (CreateProcess(0, cArguments.get(), 0, 0, TRUE, 0, 0, 0, &startUpInfo, &processInfo) != 0) {
             std::cerr << "Process created " << processInfo.dwProcessId << std::endl;
             CloseHandle(processInfo.hThread);
-            CWorker worker(processInfo, terminationEvent);
+            auto sharedPiece = PrepareSharedMem(processInfo.dwProcessId, i, source, offset);
+            CWorker worker(processInfo, terminationEvent, sharedPiece);
             workers.push_back(worker);
         } else {
             DWORD lerr = GetLastError();
@@ -107,34 +137,34 @@ void JoinWorkers(std::vector<CWorker> &workers)
     }
 }
 
-void WaitForResults(const std::vector<CWorker> &workers)
+void WaitForResults(const std::vector<CWorker> &workers, CMappedFile &output)
 {
     auto awaitedEvents = std::make_unique<HANDLE[]>((workers.size()));
+    size_t offset = 0;
     for (size_t i = 0; i < workers.size(); ++i) {
         awaitedEvents.get()[i] = workers[i].OnWorkIsDoneEvent();
+        auto result = workers[i].GetResult();
+        std::wcscpy(reinterpret_cast<wchar_t*>(output.mappedFilePtr) + offset, result.c_str());
+        offset += result.length();
     }
     DWORD waitResult = WaitForMultipleObjects(workers.size(), awaitedEvents.get(), TRUE, INFINITE);
     assert(waitResult != WAIT_FAILED && waitResult != WAIT_TIMEOUT);
-    std::cerr << "Accepted" << std::endl;
+
+    std::wcerr << "Accepted" << std::endl;
 }
 
 CMappedFile OpenAndMapFile(const std::wstring &filePath)
 {
-    HANDLE fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (fileHandle == INVALID_HANDLE_VALUE) {
         throw std::runtime_error("Can't open file. Error code");
     }
-
-    SECURITY_ATTRIBUTES attributes;
-    attributes.nLength = sizeof(attributes);
-    attributes.lpSecurityDescriptor = NULL;
-    attributes.bInheritHandle = TRUE;
-    HANDLE mappingHandle = CreateFileMapping(fileHandle, &attributes, PAGE_READWRITE, 0, 0, 0);
+    HANDLE mappingHandle = CreateFileMapping(fileHandle, 0, PAGE_READONLY, 0, 0, 0);
     if (mappingHandle == 0) {
         throw std::runtime_error("Fail to create file mapping");
     }
 
-    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ, 0, 0, 0);
     if (mappedFilePtr == 0) {
         throw std::runtime_error("Fail to map file");
     }
@@ -142,25 +172,38 @@ CMappedFile OpenAndMapFile(const std::wstring &filePath)
     return {fileHandle, mappingHandle, mappedFilePtr, fileSize};
 }
 
-void OnTerminate(CMappedFile &mappedFile)
+// da prostit me DRY(
+CMappedFile OpenAndMapOutputFile(const std::wstring &filePath, size_t size)
 {
-    CloseHandle(mappedFile.fileHandle);
-    CloseHandle(mappedFile.mappingHandle);
-    UnmapViewOfFile(mappedFile.mappedFilePtr);
+    HANDLE fileHandle = CreateFileW(filePath.c_str(), GENERIC_READ | GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    if (fileHandle == INVALID_HANDLE_VALUE) {
+        throw std::runtime_error("Can't open file");
+    }
+    HANDLE mappingHandle = CreateFileMapping(fileHandle, 0, PAGE_READWRITE, 0, size, 0);
+    if (mappingHandle == 0) {
+        throw std::runtime_error("Fail to create file mapping");
+    }
+
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_WRITE, 0, 0, 0);
+    if (mappedFilePtr == 0) {
+        throw std::runtime_error("Fail to map file");
+    }
+    DWORD fileSize = GetFileSize(fileHandle, &fileSize);
+    return { fileHandle, mappingHandle, mappedFilePtr, fileSize };
 }
 
 int main(int argc, char* argv[]) {
     try {
         std::wstring sourceFilePath;
         auto mappedSource = OpenAndMapFile(GetWStringFromArguments(2, "Source file path"));
-        auto str = reinterpret_cast<wchar_t*>(mappedSource.mappedFilePtr);
-        auto workers = InitWorkers(NumberOfThreads, GetArgument(1, "Dictionary file path"), mappedSource);
+        auto workers = InitWorkers(NumberOfProcesses, GetArgument(1, "Dictionary file path"), mappedSource);
         std::cin.ignore();
         for (CWorker &worker : workers) {
             worker.Notify();
         }
         std::cin.ignore();
-        WaitForResults(workers);
+        auto mappedOutput = OpenAndMapOutputFile(GetWStringFromArguments(3, "Target file path"), mappedSource.size);
+        WaitForResults(workers, mappedOutput);
         SetEvent(workers[0].GetTerminationEvent());
         JoinWorkers(workers);
         OnTerminate(mappedSource);

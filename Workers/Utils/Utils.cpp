@@ -3,6 +3,13 @@
 
 static const std::wstring NamePrefix(L"ru.mipt.diht.dankovtsev.workers.");
 
+void OnTerminate(CMappedFile &mappedFile)
+{
+    CloseHandle(mappedFile.fileHandle);
+    CloseHandle(mappedFile.mappingHandle);
+    UnmapViewOfFile(mappedFile.mappedFilePtr);
+}
+
 std::wstring GetArgument(size_t index, const std::string &what)
 {
     int argc;
@@ -52,4 +59,15 @@ HANDLE GetWorkIsDoneEvent(DWORD processId)
         throw std::runtime_error("Failed to create event");
     }
     return workIsDoneEvent;
+}
+
+HANDLE GetSourceMapping(DWORD processId, size_t size) 
+{
+    auto name = GenerateName(processId, L"SourceMapping");
+    auto sourceMapping = CreateFileMapping(INVALID_HANDLE_VALUE, 0, PAGE_READWRITE, 0, size, name.c_str());
+    if (sourceMapping == 0) {
+        auto lerr = GetLastError();
+        throw std::runtime_error("Failed to create mapping");
+    }
+    return sourceMapping;
 }

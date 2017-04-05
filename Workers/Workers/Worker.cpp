@@ -34,21 +34,23 @@ void PrintDictionary(const std::set<std::wstring> &dictionary) {
     }
 }
 
-std::wstring GetSourceWString()
+std::wstring GetSourceWString(CMappedFile &mappedFile, size_t size)
 {
-    HANDLE mappingHandle = GetHandleFromArguments(3, "Source mapping handle");
-    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ |FILE_MAP_WRITE, 0, 0, 0);
+    HANDLE mappingHandle = GetSourceMapping(GetCurrentProcessId(), size);
+    PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
     if (mappedFilePtr == 0) {
         throw std::runtime_error("Fail to map file");
     }
-    int offset = GetIntFromArguments(4, "Offset");
-    int size = GetIntFromArguments(5, "Size");
+    mappedFile.fileHandle = INVALID_HANDLE_VALUE;
+    mappedFile.mappingHandle = mappingHandle;
+    mappedFile.mappedFilePtr = mappedFilePtr;
 
     return std::wstring(reinterpret_cast<wchar_t*>(mappedFilePtr));
 }
 
-void TheStupidestFilter(const std::wstring &source, const std::set<std::wstring> &dictioinary) {
+void TheStupidestFilter(const std::wstring &source, const std::set<std::wstring> &dictioinary, wchar_t *dest) {
     size_t i = 0;
+
     while (i < source.length()) {
         bool isGoodWord = true;
         for (const std::wstring &word : dictioinary) {
@@ -59,16 +61,21 @@ void TheStupidestFilter(const std::wstring &source, const std::set<std::wstring>
             }
         }
         if (isGoodWord) {
-            std::wcout << source.at(i);
+            *dest = source.at(i);
+            dest++;
             ++i;
         }
     }
-    std::cout << std::endl;
+    *dest = L'\0';
 }
 
-void DoJob(const std::set<std::wstring> &dictioinary) {
+void DoJob(const std::set<std::wstring> &dictioinary, size_t size) {
     std::wcerr << L"Working HARD! Unicode suck" << std::endl;
-    TheStupidestFilter(GetSourceWString(), dictioinary);
+    CMappedFile mappedFile;
+    auto source = GetSourceWString(mappedFile, size);
+    TheStupidestFilter(source, dictioinary, reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr));
+    //reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr)[3] = L'$';
+    OnTerminate(mappedFile);
 }
 
 int main(int argc, char* argv[]) {
@@ -77,6 +84,7 @@ int main(int argc, char* argv[]) {
     HANDLE terminationEvent =  GetHandleFromArguments(2, "Termination Event");
     HANDLE dataIsReadyEvent = GetDataIsReadyEvent(GetCurrentProcessId());
     HANDLE workIsDoneEvent = GetWorkIsDoneEvent(GetCurrentProcessId());
+    int size = GetIntFromArguments(3, "Size");
 
     while (true) {
         HANDLE awaitedEvents[2] = { dataIsReadyEvent, terminationEvent };
@@ -88,7 +96,7 @@ int main(int argc, char* argv[]) {
             assert(false);
         case WAIT_OBJECT_0 + 0:
             // Появилсь работа
-            DoJob(dictionary);
+            DoJob(dictionary, size);
             SetEvent(workIsDoneEvent);
             break;
         case WAIT_OBJECT_0 + 1:
