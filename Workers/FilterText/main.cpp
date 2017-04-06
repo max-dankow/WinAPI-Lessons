@@ -117,7 +117,6 @@ std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dic
         PROCESS_INFORMATION processInfo;
         STARTUPINFO startUpInfo = { sizeof(startUpInfo) };
         if (CreateProcess(0, cArguments.get(), 0, 0, TRUE, 0, 0, 0, &startUpInfo, &processInfo) != 0) {
-            std::cerr << "Process created " << processInfo.dwProcessId << std::endl;
             CloseHandle(processInfo.hThread);
             auto sharedPiece = PrepareSharedMem(processInfo.dwProcessId, i, source, offset);
             CWorker worker(processInfo, terminationEvent, sharedPiece);
@@ -143,14 +142,14 @@ void WaitForResults(const std::vector<CWorker> &workers, CMappedFile &output)
     size_t offset = 0;
     for (size_t i = 0; i < workers.size(); ++i) {
         awaitedEvents.get()[i] = workers[i].OnWorkIsDoneEvent();
+    }
+    DWORD waitResult = WaitForMultipleObjects(workers.size(), awaitedEvents.get(), TRUE, INFINITE);
+    assert(waitResult != WAIT_FAILED && waitResult != WAIT_TIMEOUT);
+    for (size_t i = 0; i < workers.size(); ++i) {
         auto result = workers[i].GetResult();
         std::wcscpy(reinterpret_cast<wchar_t*>(output.mappedFilePtr) + offset, result.c_str());
         offset += result.length();
     }
-    DWORD waitResult = WaitForMultipleObjects(workers.size(), awaitedEvents.get(), TRUE, INFINITE);
-    assert(waitResult != WAIT_FAILED && waitResult != WAIT_TIMEOUT);
-
-    std::wcerr << "Accepted" << std::endl;
 }
 
 CMappedFile OpenAndMapFile(const std::wstring &filePath)
@@ -197,17 +196,14 @@ int main(int argc, char* argv[]) {
         std::wstring sourceFilePath;
         auto mappedSource = OpenAndMapFile(GetWStringFromArguments(2, "Source file path"));
         auto workers = InitWorkers(NumberOfProcesses, GetArgument(1, "Dictionary file path"), mappedSource);
-        std::cin.ignore();
         for (CWorker &worker : workers) {
             worker.Notify();
         }
-        std::cin.ignore();
         auto mappedOutput = OpenAndMapOutputFile(GetWStringFromArguments(3, "Target file path"), mappedSource.size);
         WaitForResults(workers, mappedOutput);
         SetEvent(workers[0].GetTerminationEvent());
         JoinWorkers(workers);
         OnTerminate(mappedSource);
-        std::cin.ignore();
         return 0;
     } catch (std::exception e) {
         std::cerr << e.what() << std::endl;

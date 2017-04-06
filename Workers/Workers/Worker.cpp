@@ -70,16 +70,13 @@ void TheStupidestFilter(const std::wstring &source, const std::set<std::wstring>
 }
 
 void DoJob(const std::set<std::wstring> &dictioinary, size_t size) {
-    std::wcerr << L"Working HARD! Unicode suck" << std::endl;
     CMappedFile mappedFile;
     auto source = GetSourceWString(mappedFile, size);
     TheStupidestFilter(source, dictioinary, reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr));
-    //reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr)[3] = L'$';
     OnTerminate(mappedFile);
 }
 
 int main(int argc, char* argv[]) {
-    std::wcerr << L"Worker here!" << std::endl;
     std::set<std::wstring> dictionary = ReadDictionary(GetWStringFromArguments(1, "Dictionary file path"));
     HANDLE terminationEvent =  GetHandleFromArguments(2, "Termination Event");
     HANDLE dataIsReadyEvent = GetDataIsReadyEvent(GetCurrentProcessId());
@@ -88,7 +85,6 @@ int main(int argc, char* argv[]) {
 
     while (true) {
         HANDLE awaitedEvents[2] = { dataIsReadyEvent, terminationEvent };
-        std::wcerr << L"Wait for job" << std::endl;
         DWORD waitResult = WaitForMultipleObjects(2, awaitedEvents, FALSE, INFINITE);
         switch (waitResult) {
         case WAIT_FAILED:
@@ -101,7 +97,6 @@ int main(int argc, char* argv[]) {
             break;
         case WAIT_OBJECT_0 + 1:
             // Завершение работы
-            std::wcerr << L"terminate\n";
             return 0;
         }
     }
