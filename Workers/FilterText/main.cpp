@@ -11,12 +11,40 @@ static const int NumberOfProcesses = 4;
 
 class CWorker {
 public:
-    CWorker(const PROCESS_INFORMATION processInfo, const HANDLE terminationEvent, CMappedFile mappedFile) :
+    CWorker(const PROCESS_INFORMATION processInfo, const HANDLE terminationEvent, CMappedFile &&mappedFile) :
         processInfo(processInfo),
         terminationEvent(terminationEvent),
-        mappedFile(mappedFile) {
+        mappedFile(std::move(mappedFile)) {
         dataIsReadyEvent = GetDataIsReadyEvent(processInfo.dwProcessId);
         workIsDoneEvent = GetWorkIsDoneEvent(processInfo.dwProcessId);
+    }
+
+    CWorker(const CWorker&) = delete;
+    void operator=(const CWorker&) = delete;
+
+    CWorker(CWorker&& other) :
+        processInfo(other.processInfo),
+        terminationEvent(other.terminationEvent),
+        dataIsReadyEvent(other.dataIsReadyEvent),
+        workIsDoneEvent(other.workIsDoneEvent),
+        mappedFile(std::move(other.mappedFile)) {
+        other.invalidate();
+    }
+
+    void operator=(CWorker &&other) {
+        invalidate();
+        processInfo = other.processInfo;
+        terminationEvent = other.terminationEvent;
+        dataIsReadyEvent = other.dataIsReadyEvent;
+        workIsDoneEvent = other.workIsDoneEvent;
+        mappedFile = std::move(other.mappedFile);
+    }
+
+    ~CWorker() {
+        CloseHandle(processInfo.hProcess);
+        CloseHandle(processInfo.hThread);
+        CloseHandle(dataIsReadyEvent);
+        CloseHandle(workIsDoneEvent);
     }
 
     HANDLE GetTerminationEvent() const {
@@ -42,13 +70,21 @@ public:
     }
 
     std::wstring GetResult() const {
-        return std::wstring(reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr));
+        return std::wstring(reinterpret_cast<wchar_t*>(mappedFile.GetAddr()));
     }
 
 private:
     PROCESS_INFORMATION processInfo;
     HANDLE terminationEvent, dataIsReadyEvent, workIsDoneEvent;
     CMappedFile mappedFile;
+
+    void invalidate() {
+        processInfo.hProcess = INVALID_HANDLE_VALUE;
+        processInfo.hThread = INVALID_HANDLE_VALUE;
+        terminationEvent = INVALID_HANDLE_VALUE;
+        dataIsReadyEvent = INVALID_HANDLE_VALUE;
+        workIsDoneEvent = INVALID_HANDLE_VALUE;
+    }
 };
 
 HANDLE CreateTerminationEvent()
@@ -66,12 +102,12 @@ HANDLE CreateTerminationEvent()
 
 size_t GetTaskSize(int processIndex, const CMappedFile &source, size_t &offset)
 {
-    size_t taskSize = ((source.size) / 2 / NumberOfProcesses) * 2;
-    if (processIndex + 1 == NumberOfProcesses || source.size - offset < taskSize) {
-        taskSize = source.size - offset;
+    size_t taskSize = ((source.GetSize()) / 2 / NumberOfProcesses) * 2;
+    if (processIndex + 1 == NumberOfProcesses || source.GetSize() - offset < taskSize) {
+        taskSize = source.GetSize() - offset;
         return taskSize;
     }
-    while (reinterpret_cast<wchar_t*>(source.mappedFilePtr)[(taskSize + offset) / 2] != L' ' && taskSize + offset < source.size) {
+    while (reinterpret_cast<wchar_t*>(source.GetAddr())[(taskSize + offset) / 2] != L' ' && taskSize + offset < source.GetSize()) {
         taskSize += sizeof(wchar_t);
     }
     
@@ -85,8 +121,8 @@ CMappedFile PrepareSharedMem(DWORD processId, int processIndex, const CMappedFil
     if (mappedFilePtr == 0) {
         throw std::runtime_error("Fail to map file");
     }
-    //todo: ну тут вообще полный ппц
-    std::wcsncpy(reinterpret_cast<wchar_t*>(mappedFilePtr), reinterpret_cast<wchar_t*>(source.mappedFilePtr) + offset / 2, taskSize / 2);
+    //todo: ну тут вообще плохо
+    std::wcsncpy(reinterpret_cast<wchar_t*>(mappedFilePtr), reinterpret_cast<wchar_t*>(source.GetAddr()) + offset / 2, taskSize / 2);
     reinterpret_cast<wchar_t*>(mappedFilePtr)[taskSize / 2] = L'\0';
     offset += taskSize;
     return { 0, mappingHandle, mappedFilePtr, taskSize + 2 };
@@ -108,19 +144,17 @@ std::vector<CWorker> InitWorkers(size_t numberOfWorkers, const std::wstring &dic
         auto taskSize = GetTaskSize(i, source, offset);
         std::wstring arguments = workerPath.append(L" ")
             .append(dictionaryPath).append(L" ")
-            .append(std::to_wstring(reinterpret_cast<int> (terminationEvent))).append(L" ")
-            .append(std::to_wstring(taskSize)); // so bad to do it, no sence(
+            .append(std::to_wstring(reinterpret_cast<int> (terminationEvent))).append(L" ");
 
         auto cArguments = std::make_unique<wchar_t[]>(arguments.length() + 1);
         wcscpy(cArguments.get(), arguments.c_str());
-
+        
         PROCESS_INFORMATION processInfo;
         STARTUPINFO startUpInfo = { sizeof(startUpInfo) };
         if (CreateProcess(0, cArguments.get(), 0, 0, TRUE, 0, 0, 0, &startUpInfo, &processInfo) != 0) {
             CloseHandle(processInfo.hThread);
             auto sharedPiece = PrepareSharedMem(processInfo.dwProcessId, i, source, offset);
-            CWorker worker(processInfo, terminationEvent, sharedPiece);
-            workers.push_back(worker);
+            workers.push_back(CWorker(processInfo, terminationEvent, std::move(sharedPiece)));
         } else {
             DWORD lerr = GetLastError();
             throw std::runtime_error("Failed to create a process");
@@ -138,7 +172,7 @@ void JoinWorkers(std::vector<CWorker> &workers)
 
 void WaitForResults(const std::vector<CWorker> &workers, CMappedFile &output)
 {
-    auto awaitedEvents = std::make_unique<HANDLE[]>((workers.size()));
+    auto awaitedEvents = std::make_unique<HANDLE[]>(workers.size());
     size_t offset = 0;
     for (size_t i = 0; i < workers.size(); ++i) {
         awaitedEvents.get()[i] = workers[i].OnWorkIsDoneEvent();
@@ -147,7 +181,7 @@ void WaitForResults(const std::vector<CWorker> &workers, CMappedFile &output)
     assert(waitResult != WAIT_FAILED && waitResult != WAIT_TIMEOUT);
     for (size_t i = 0; i < workers.size(); ++i) {
         auto result = workers[i].GetResult();
-        std::wcscpy(reinterpret_cast<wchar_t*>(output.mappedFilePtr) + offset, result.c_str());
+        std::wcscpy(reinterpret_cast<wchar_t*>(output.GetAddr()) + offset, result.c_str());
         offset += result.length();
     }
 }
@@ -199,11 +233,10 @@ int main(int argc, char* argv[]) {
         for (CWorker &worker : workers) {
             worker.Notify();
         }
-        auto mappedOutput = OpenAndMapOutputFile(GetWStringFromArguments(3, "Target file path"), mappedSource.size);
+        auto mappedOutput = OpenAndMapOutputFile(GetWStringFromArguments(3, "Target file path"), mappedSource.GetSize());
         WaitForResults(workers, mappedOutput);
         SetEvent(workers[0].GetTerminationEvent());
         JoinWorkers(workers);
-        OnTerminate(mappedSource);
         return 0;
     } catch (std::exception e) {
         std::cerr << e.what() << std::endl;

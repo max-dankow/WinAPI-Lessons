@@ -34,16 +34,15 @@ void PrintDictionary(const std::set<std::wstring> &dictionary) {
     }
 }
 
-std::wstring GetSourceWString(CMappedFile &mappedFile, size_t size)
+std::wstring GetSourceWString(CMappedFile &mappedFile)
 {
-    HANDLE mappingHandle = GetSourceMapping(GetCurrentProcessId(), size);
+    HANDLE mappingHandle = GetSourceMapping(GetCurrentProcessId());
     PVOID mappedFilePtr = MapViewOfFile(mappingHandle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0);
     if (mappedFilePtr == 0) {
         throw std::runtime_error("Fail to map file");
     }
-    mappedFile.fileHandle = INVALID_HANDLE_VALUE;
-    mappedFile.mappingHandle = mappingHandle;
-    mappedFile.mappedFilePtr = mappedFilePtr;
+
+    mappedFile = std::move(CMappedFile(INVALID_HANDLE_VALUE, mappingHandle, mappedFilePtr, 0));
 
     return std::wstring(reinterpret_cast<wchar_t*>(mappedFilePtr));
 }
@@ -69,11 +68,10 @@ void TheStupidestFilter(const std::wstring &source, const std::set<std::wstring>
     *dest = L'\0';
 }
 
-void DoJob(const std::set<std::wstring> &dictioinary, size_t size) {
+void DoJob(const std::set<std::wstring> &dictioinary) {
     CMappedFile mappedFile;
-    auto source = GetSourceWString(mappedFile, size);
-    TheStupidestFilter(source, dictioinary, reinterpret_cast<wchar_t*>(mappedFile.mappedFilePtr));
-    OnTerminate(mappedFile);
+    auto source = GetSourceWString(mappedFile);
+    TheStupidestFilter(source, dictioinary, reinterpret_cast<wchar_t*>(mappedFile.GetAddr()));
 }
 
 int main(int argc, char* argv[]) {
@@ -81,7 +79,6 @@ int main(int argc, char* argv[]) {
     HANDLE terminationEvent =  GetHandleFromArguments(2, "Termination Event");
     HANDLE dataIsReadyEvent = GetDataIsReadyEvent(GetCurrentProcessId());
     HANDLE workIsDoneEvent = GetWorkIsDoneEvent(GetCurrentProcessId());
-    int size = GetIntFromArguments(3, "Size");
 
     while (true) {
         HANDLE awaitedEvents[2] = { dataIsReadyEvent, terminationEvent };
@@ -92,7 +89,7 @@ int main(int argc, char* argv[]) {
             assert(false);
         case WAIT_OBJECT_0 + 0:
             // Появилсь работа
-            DoJob(dictionary, size);
+            DoJob(dictionary);
             SetEvent(workIsDoneEvent);
             break;
         case WAIT_OBJECT_0 + 1:

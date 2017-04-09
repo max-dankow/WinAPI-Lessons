@@ -3,13 +3,67 @@
 #include <string>
 
 
-struct CMappedFile {
+class CMappedFile {
+public:
+    CMappedFile(HANDLE fileHandle, HANDLE mappingHandle, PVOID mappedFilePtr,  size_t size):
+        fileHandle(fileHandle),
+        mappingHandle(mappingHandle),
+        mappedFilePtr(mappedFilePtr),
+        size(size) { }
+
+    CMappedFile() {
+        invalidate();
+    }
+
+    CMappedFile(const CMappedFile &) = delete;
+    void operator=(const CMappedFile&) = delete;
+
+    CMappedFile(CMappedFile&& other) :
+        fileHandle(other.fileHandle),
+        mappingHandle(other.mappingHandle),
+        mappedFilePtr(other.mappedFilePtr),
+        size(other.size)
+    {
+        other.invalidate();
+    }
+
+    void operator=(CMappedFile&& other) {
+        fileHandle = other.fileHandle;
+        mappingHandle = other.mappingHandle;
+        mappedFilePtr = other.mappedFilePtr;
+        size = other.size;
+        other.invalidate();
+    }
+
+    ~CMappedFile() {
+        if (fileHandle != INVALID_HANDLE_VALUE) {
+            CloseHandle(fileHandle);
+        }
+        if (mappingHandle != INVALID_HANDLE_VALUE) {
+            CloseHandle(mappingHandle);
+        }
+        UnmapViewOfFile(mappedFilePtr);
+    }
+
+    size_t GetSize() const {
+        return size;
+    }
+
+    PVOID GetAddr() const {
+        return mappedFilePtr;
+    }
+
+private:
     HANDLE fileHandle, mappingHandle;
     PVOID mappedFilePtr;
     size_t size;
-};
 
-void OnTerminate(CMappedFile &mappedFile);
+    void invalidate() {
+        fileHandle = INVALID_HANDLE_VALUE;
+        mappingHandle = INVALID_HANDLE_VALUE;
+        mappedFilePtr = NULL;
+    }
+};
 
 std::wstring GetArgument(size_t index, const std::string &what);
 
