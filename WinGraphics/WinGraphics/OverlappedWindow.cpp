@@ -24,11 +24,6 @@ private:
 	LPPAINTSTRUCT paintStruct;
 };
 
-COverlappedWindow::~COverlappedWindow()
-{
-	OnDestroy();
-}
-
 // Стоит заметить, что благодаря define RegisterClass RegisterClassW, теперь везде происходит замена.
 void COverlappedWindow::RegisterClass()
 {
@@ -103,6 +98,8 @@ LRESULT CALLBACK COverlappedWindow::windowProc(HWND handle, UINT message, WPARAM
 	case WM_PAINT:
 		pThis->OnDraw();
 		break;
+	case WM_ERASEBKGND:
+		return (LRESULT)1; // Say we handled it.
 	case WM_TIMER:
 		pThis->OnTimer();
 		break;
@@ -128,7 +125,33 @@ void COverlappedWindow::OnDraw()
 	PAINTSTRUCT paintStruct;
 	CContext contextHolder(windowHandle, &paintStruct);
 	HDC context = contextHolder.getContext();
-	ellipse.draw(context);
+	RECT rc;
+	GetClientRect(windowHandle, &rc);
+	HDC hdcMem = CreateCompatibleDC(context);
+
+	HBITMAP hbmMem, hbmOld;
+	hbmMem = CreateCompatibleBitmap(context, rc.right - rc.left, rc.bottom - rc.top);
+
+	hbmOld = (HBITMAP)SelectObject(hdcMem, hbmMem);
+
+	HBRUSH hbrBkGnd = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+	FillRect(hdcMem, &rc, hbrBkGnd);
+	DeleteObject(hbrBkGnd);
+	
+
+	//BitBlt(context, 0, 0, bm.bmWidth, bm.bmHeight, memBit, 0, 0, SRCCOPY);
+	ellipse.draw(hdcMem);
+
+	BitBlt(context,
+		rc.left, rc.top,
+		rc.right - rc.left, rc.bottom - rc.top,
+		hdcMem,
+		0, 0,
+		SRCCOPY);
+
+	SelectObject(hdcMem, hbmOld);
+	DeleteObject(hbmMem);
+	DeleteDC(hdcMem);
 }
 
 void COverlappedWindow::OnTimer()

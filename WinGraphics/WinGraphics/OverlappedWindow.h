@@ -32,7 +32,6 @@ class COverlappedWindow
 {
 public:
 	COverlappedWindow(const std::wstring title = L"Main window") : title(title), ellipse(0, 0, 50, 100) { }
-	~COverlappedWindow();
 
 	// Зарегистрировать класс окна
 	static void RegisterClass();
@@ -49,12 +48,13 @@ protected:
 	void OnTimer();
 private:
 	static constexpr wchar_t* ClassName = L"COverlappedWindow";
-	static const int TimerElapseMs = 100;
+	static const int TimerElapseMs = 16;
 
 	CEllipse ellipse;
 	std::wstring title;
 	HWND windowHandle; // хэндл окна
 	UINT_PTR timer;
+	static HDC memDC;
 
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
 	void StartTimer() const;
