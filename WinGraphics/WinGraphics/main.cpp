@@ -4,22 +4,7 @@
 #include <exception>
 
 #include "OverlappedWindow.h"
-
-// Global variable 
-
-HINSTANCE hinst;
-
-// Function prototypes. 
-
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
-LRESULT CALLBACK MainWndProc(HWND, UINT, WPARAM, LPARAM);
-
-void ShowError(const std::string &message)
-{
-	MessageBoxA(0, message.c_str(), "Error", MB_OK);
-}
-
-// Application entry point.
+#include "Utils.h"
 
 int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -41,5 +26,6 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	}
 	catch (std::runtime_error e) {
 		ShowError(e.what());
+		return 1;
 	}
 }

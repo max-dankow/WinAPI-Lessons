@@ -2,6 +2,8 @@
 #include <exception>
 #include <string>
 
+#include "Utils.h"
+
 class CContext
 {
 public:
@@ -22,8 +24,6 @@ private:
 	LPPAINTSTRUCT paintStruct;
 };
 
-const std::string COverlappedWindow::ClassName = "COverlappedWindow";
-
 COverlappedWindow::~COverlappedWindow()
 {
 	OnDestroy();
@@ -43,7 +43,7 @@ void COverlappedWindow::RegisterClass()
 	wcx.hCursor = NULL;
 	wcx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wcx.lpszMenuName = NULL;
-	wcx.lpszClassName = L"MainWClass";
+	wcx.lpszClassName = ClassName;
 	wcx.hIconSm = NULL;
 	if (RegisterClassExW(&wcx) == 0) {
 		throw std::runtime_error("Fail to RegisterClass " + std::to_string(GetLastError()));
@@ -53,8 +53,8 @@ void COverlappedWindow::RegisterClass()
 void COverlappedWindow::Create()
 {
 	windowHandle = CreateWindow(
-	L"MainWClass",  // name of window class
-	L"Sample",  // title-bar string
+	ClassName,  // name of window class
+	title.c_str(),  // title-bar string
 	WS_OVERLAPPEDWINDOW,  // top-level window
 	CW_USEDEFAULT,  // default horizontal position
 	CW_USEDEFAULT,  // default vertical position
@@ -63,7 +63,7 @@ void COverlappedWindow::Create()
 	(HWND)NULL,  // no owner window
 	(HMENU)NULL,  // use class menu
 	GetModuleHandle(NULL),  // handle to current application instance
-	(LPVOID)NULL);  // no window-creation data
+	this);  // no window-creation data
 
 	if (windowHandle == NULL) {
 		throw std::runtime_error("Fail to CreateWindow " + std::to_string(GetLastError()));
@@ -75,24 +75,64 @@ void COverlappedWindow::Show(int cmdShow) const
 	// Show the window and send a WM_PAINT message to the window procedure. 
 	ShowWindow(windowHandle, cmdShow);
 	UpdateWindow(windowHandle);
+	StartTimer();
 }
 
+void COverlappedWindow::StartTimer() const
+{
+	SetTimer(windowHandle, 1, TimerElapseMs, NULL);
+}
+
+void COverlappedWindow::StopTimer() const
+{
+	KillTimer(windowHandle, 1);
+}
 
 LRESULT CALLBACK COverlappedWindow::windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	// ¬осстанавливаем указатель this на COverlappedWindow
+	COverlappedWindow* pThis = reinterpret_cast<COverlappedWindow*>(GetWindowLongPtr(handle, GWLP_USERDATA));
+
 	switch (message) {
-	case WM_PAINT: {
-		PAINTSTRUCT paintStruct;
-		CContext contextHolder(handle, &paintStruct);
-		HDC context = contextHolder.getContext();
-		TextOut(context, 0, 0, L"TextOut", sizeof(L"TextOut"));
+	case WM_NCCREATE:
+		// ѕри создании окна, в параметрах сообщени€ WM_NCCREATE будет this
+		// ¬ этом случае, его нужно запомнить в параметрах окна.
+		pThis = static_cast<COverlappedWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+		SetWindowLongPtr(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
 		break;
-	}
+	case WM_PAINT:
+		pThis->OnDraw();
+		break;
+	case WM_TIMER:
+		pThis->OnTimer();
+		break;
 	case WM_DESTROY:
+		SetWindowLongPtr(handle, GWLP_USERDATA, NULL);
+		pThis->StopTimer();
+		pThis->OnDestroy();
 		PostQuitMessage(0);
 		break;
 	default:
 		return DefWindowProc(handle, message, wParam, lParam);
 	}
-	return 0;
+	if (pThis == NULL) {
+		ShowError("Fail to get pointer to COverlappedWindow " + std::to_string(GetLastError()));
+		PostQuitMessage(1);
+		return NULL;
+	}
+	return DefWindowProc(handle, message, wParam, lParam);
+}
+
+void COverlappedWindow::OnDraw()
+{
+	PAINTSTRUCT paintStruct;
+	CContext contextHolder(windowHandle, &paintStruct);
+	HDC context = contextHolder.getContext();
+	ellipse.draw(context);
+}
+
+void COverlappedWindow::OnTimer()
+{
+	ellipse.move();
+	InvalidateRect(windowHandle, NULL, TRUE);
 }
