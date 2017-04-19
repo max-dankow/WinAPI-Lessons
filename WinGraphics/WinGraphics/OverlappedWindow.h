@@ -4,16 +4,28 @@
 
 class CEllipse {
 public:
-	CEllipse(int left, int top, int height, int width) : left(left), top(top), height(height), width(width) { }
+	CEllipse(int left, int top, int height, int width) : 
+		left(left), top(top), 
+		height(height), width(width),
+		brush(CreateSolidBrush(RGB(128, 0, 128))) { }
+
+	~CEllipse() {
+		DeleteObject(brush);
+	}
+
 	void draw(HDC context) const {
+		SelectObject(context, GetStockObject(NULL_PEN));
+		SelectObject(context, brush);
 		Ellipse(context, left, top, left + width, top + height);
 	}
+
 	void move() {
 		top += 1;
 		left += 1;
 	}
 private:
 	int left, top, height, width;
+	HBRUSH brush;
 };
 
 class COverlappedWindow 
