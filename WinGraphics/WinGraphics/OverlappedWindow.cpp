@@ -4,13 +4,13 @@
 
 #include "Utils.h"
 
-class CContext
+class CDeviceContext
 {
 public:
-	CContext(HWND hWnd, LPPAINTSTRUCT paintStruct) : window(hWnd), paintStruct(paintStruct) {
+	CDeviceContext(HWND hWnd, LPPAINTSTRUCT paintStruct) : window(hWnd), paintStruct(paintStruct) {
 		context = BeginPaint(hWnd, paintStruct);
 	}
-	~CContext() {
+	~CDeviceContext() {
 		EndPaint(window, paintStruct);
 	}
 
@@ -24,7 +24,7 @@ private:
 	LPPAINTSTRUCT paintStruct;
 };
 
-// —тоит заметить, что благодар€ define RegisterClass RegisterClassW, теперь везде происходит замена.
+// —тоит заметить, что из-за define RegisterClass RegisterClassW теперь везде происходит замена.
 void COverlappedWindow::RegisterClass()
 {
 	WNDCLASSEX wcx;
@@ -58,7 +58,7 @@ void COverlappedWindow::Create()
 	(HWND)NULL,  // no owner window
 	(HMENU)NULL,  // use class menu
 	GetModuleHandle(NULL),  // handle to current application instance
-	this);  // no window-creation data
+	this);  // ѕередаетс€ чтобы использовать нестатические члены COverlappedWindow в статической windowProc
 
 	if (windowHandle == NULL) {
 		throw std::runtime_error("Fail to CreateWindow " + std::to_string(GetLastError()));
@@ -94,7 +94,7 @@ LRESULT CALLBACK COverlappedWindow::windowProc(HWND handle, UINT message, WPARAM
 		// ¬ этом случае, его нужно запомнить в параметрах окна.
 		pThis = static_cast<COverlappedWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
 		SetWindowLongPtr(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-		break;
+		return TRUE;
 	case WM_PAINT:
 		pThis->OnDraw();
 		break;
@@ -115,20 +115,20 @@ LRESULT CALLBACK COverlappedWindow::windowProc(HWND handle, UINT message, WPARAM
 	if (pThis == NULL) {
 		ShowError("Fail to get pointer to COverlappedWindow " + std::to_string(GetLastError()));
 		PostQuitMessage(1);
-		return NULL;
 	}
-	return DefWindowProc(handle, message, wParam, lParam);
+	return 0;
 }
 
 void COverlappedWindow::OnDraw()
 {
 	PAINTSTRUCT paintStruct;
-	CContext contextHolder(windowHandle, &paintStruct);
+	CDeviceContext contextHolder(windowHandle, &paintStruct);
 	HDC context = contextHolder.getContext();
+
+	// example from msdn
 	RECT rc;
 	GetClientRect(windowHandle, &rc);
 	HDC hdcMem = CreateCompatibleDC(context);
-
 	HBITMAP hbmMem, hbmOld;
 	hbmMem = CreateCompatibleBitmap(context, rc.right - rc.left, rc.bottom - rc.top);
 
@@ -138,8 +138,6 @@ void COverlappedWindow::OnDraw()
 	FillRect(hdcMem, &rc, hbrBkGnd);
 	DeleteObject(hbrBkGnd);
 	
-
-	//BitBlt(context, 0, 0, bm.bmWidth, bm.bmHeight, memBit, 0, 0, SRCCOPY);
 	ellipse.draw(hdcMem);
 
 	BitBlt(context,
@@ -156,6 +154,8 @@ void COverlappedWindow::OnDraw()
 
 void COverlappedWindow::OnTimer()
 {
-	ellipse.move();
+	RECT rect;
+	GetClientRect(windowHandle, &rect);
+	ellipse.move(rect);
 	InvalidateRect(windowHandle, NULL, TRUE);
 }

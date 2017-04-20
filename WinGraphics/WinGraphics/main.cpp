@@ -8,7 +8,6 @@
 
 int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	MSG msg;
 	try {
 		COverlappedWindow::RegisterClass();
 		COverlappedWindow mainWindow;
@@ -16,6 +15,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		mainWindow.Show(nCmdShow);
 
 		BOOL fGotMessage;
+		MSG msg;
 		while ((fGotMessage = GetMessage(&msg, (HWND)NULL, 0, 0)) != 0 && fGotMessage != -1)
 		{
 			TranslateMessage(&msg);
