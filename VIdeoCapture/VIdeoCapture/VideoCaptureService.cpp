@@ -2,7 +2,7 @@
 #include "Utils.h"
 
 
-CVideoCaptureService::CVideoCaptureService() : pGraph(NULL), pBuild(NULL), pCap(NULL) { }
+CVideoCaptureService::CVideoCaptureService(HWND window) : pGraph(NULL), pBuild(NULL), window(window) { }
 
 CVideoCaptureService::~CVideoCaptureService()
 {
@@ -130,7 +130,6 @@ void CVideoCaptureService::SelectVideoDevice(size_t index)
     }
     selectedDevice = index;
     VideoDevice& device = availableDevices[selectedDevice];
-    //ThrowIfError(L"Creating Capture Filter", device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object));
     HRESULT hr = device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object);
     if (SUCCEEDED(hr))
     {
@@ -144,9 +143,37 @@ void CVideoCaptureService::StartPreview()
         throw std::wstring(L"Video Device is not selected");
     }
     prepareGraph();
-    ThrowIfError(L"Graph Run error",pControl.object->Run());
+    setupVideoWindow();
+    ThrowIfError(L"Graph Run error", pControl.object->Run());
     long evCode = 0;
     pEvent.object->WaitForCompletion(INFINITE, &evCode);
+}
+
+void CVideoCaptureService::resizeVideoWindow()
+{
+    // Resize the video preview window to match owner window size
+    if (videoWindow.object != NULL) {
+        RECT rc;
+        // Make the preview video fill our window
+        GetClientRect(window, &rc);
+        videoWindow.object->SetWindowPosition(0, 0, 800, 600);
+    }
+}
+
+void CVideoCaptureService::setupVideoWindow()
+{
+    // Set the video window to be a child of the main window
+    ThrowIfError(L"Fail to set Video Window owner", videoWindow.object->put_Owner((OAHWND)window));
+
+    // Set video window style
+    ThrowIfError(L"Fail to set Video Window style", videoWindow.object->put_WindowStyle(WS_CHILD | WS_CLIPCHILDREN));
+
+    // Use helper function to position video window in client rect 
+    // of main application window
+    resizeVideoWindow();
+
+    // Make the video window visible, now that it is properly positioned
+    ThrowIfError(L"Fail to set Video Window visable", videoWindow.object->put_Visible(OATRUE));
 }
 
 void CVideoCaptureService::prepareGraph()
@@ -154,4 +181,5 @@ void CVideoCaptureService::prepareGraph()
     ThrowIfError(L"Creating Render Graph", pBuild->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, NULL));
     ThrowIfError(L"IMediaControl", pGraph->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
     ThrowIfError(L"IMediaEvent", pGraph->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
+    ThrowIfError(L"IVideoWindow", pGraph->QueryInterface(IID_IVideoWindow, (LPVOID *)&videoWindow.object));
 }

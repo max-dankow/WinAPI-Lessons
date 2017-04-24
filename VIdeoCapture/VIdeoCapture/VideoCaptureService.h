@@ -39,7 +39,7 @@ struct VideoDevice {
 class CVideoCaptureService
 {
 public:
-    CVideoCaptureService();
+    CVideoCaptureService(HWND window);
     ~CVideoCaptureService();
    
     void Init();
@@ -51,14 +51,18 @@ private:
     HRESULT initCaptureGraphBuilder(IGraphBuilder*& pGraph, ICaptureGraphBuilder2*& pBuild);
     std::vector<VideoDevice> obtainAvailableVideoDevices();
     void prepareGraph();
+    void setupVideoWindow();
+    void resizeVideoWindow();
+
 
     IGraphBuilder* pGraph;
     ICaptureGraphBuilder2 *pBuild;
     CComHolder<IBaseFilter> pCap;
     CComHolder<IMediaControl> pControl;
     CComHolder<IMediaEvent> pEvent;
+    CComHolder<IVideoWindow> videoWindow;
 
-
+    HWND window;
     std::vector<VideoDevice> availableDevices;
     size_t selectedDevice;
 };

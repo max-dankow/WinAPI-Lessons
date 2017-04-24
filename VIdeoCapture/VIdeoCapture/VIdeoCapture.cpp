@@ -143,7 +143,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case ID_FILE_PLAY:
             {
                 // TODO: do not lock main thread
-                CVideoCaptureService videoService;
+                CVideoCaptureService videoService(hWnd);
                 try {
                     videoService.Init();
                     auto devices = videoService.GetAvailableVideoDevicesInfo();
