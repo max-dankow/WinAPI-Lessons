@@ -2,7 +2,7 @@
 #include "Utils.h"
 
 
-CVideoCaptureService::CVideoCaptureService() : pGraph(NULL), pBuild(NULL) { }
+CVideoCaptureService::CVideoCaptureService() : pGraph(NULL), pBuild(NULL), pCap(NULL) { }
 
 CVideoCaptureService::~CVideoCaptureService()
 {
@@ -18,6 +18,8 @@ CVideoCaptureService::~CVideoCaptureService()
 void CVideoCaptureService::Init()
 {
     ThrowIfError(L"Fail to initialize Capture Graph Builder", initCaptureGraphBuilder(pGraph, pBuild));
+    availableDevices = obtainAvailableVideoDevices();
+    SelectVideoDevice(0);
 }
 
 // The caller must release both interfaces.
@@ -101,15 +103,55 @@ std::vector<VideoDevice> getDeviceInformation(const CComHolder<IEnumMoniker> &en
     return devices;
 }
 
-std::vector<VideoDevice> CVideoCaptureService::GetPossibleVideoSources()
+std::vector<VideoDevice> CVideoCaptureService::obtainAvailableVideoDevices()
 {
     CComHolder<IEnumMoniker> devicesEnum;
     HRESULT hr = EnumerateDevices(CLSID_VideoInputDeviceCategory, devicesEnum);
-    ThrowIfError(L"Fail to enumerate video devices", hr);
+    ThrowIfError(L"Fail to get available video devices", hr);
     if (SUCCEEDED(hr)) {
         return getDeviceInformation(devicesEnum);
-    }
-    else {
+    } else {
         return std::vector<VideoDevice>();
     }
+}
+
+std::vector<std::wstring> CVideoCaptureService::GetAvailableVideoDevicesInfo()
+{
+    std::vector<std::wstring> devicesInfo;
+    for (const VideoDevice& device : availableDevices) {
+        devicesInfo.push_back(device.name);
+    }
+    return devicesInfo;
+}
+void CVideoCaptureService::SelectVideoDevice(size_t index)
+{
+    if (index > availableDevices.size()) {
+        throw std::wstring(L"Device index in out of bounds");
+    }
+    selectedDevice = index;
+    VideoDevice& device = availableDevices[selectedDevice];
+    //ThrowIfError(L"Creating Capture Filter", device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object));
+    HRESULT hr = device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object);
+    if (SUCCEEDED(hr))
+    {
+        hr = pGraph->AddFilter(pCap.object, L"Capture Filter");
+    }
+}
+
+void CVideoCaptureService::StartPreview()
+{
+    if (pCap.object == NULL) {
+        throw std::wstring(L"Video Device is not selected");
+    }
+    prepareGraph();
+    ThrowIfError(L"Graph Run error",pControl.object->Run());
+    long evCode = 0;
+    pEvent.object->WaitForCompletion(INFINITE, &evCode);
+}
+
+void CVideoCaptureService::prepareGraph()
+{
+    ThrowIfError(L"Creating Render Graph", pBuild->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, NULL));
+    ThrowIfError(L"IMediaControl", pGraph->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
+    ThrowIfError(L"IMediaEvent", pGraph->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
 }

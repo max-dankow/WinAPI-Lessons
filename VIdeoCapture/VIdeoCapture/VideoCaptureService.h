@@ -33,7 +33,7 @@ public:
 
 struct VideoDevice {
     std::wstring name;
-    CComHolder<IMoniker> filterMoniker;
+    CComHolder<IMoniker> moniker;
 };
 
 class CVideoCaptureService
@@ -43,12 +43,23 @@ public:
     ~CVideoCaptureService();
    
     void Init();
-    std::vector<VideoDevice> GetPossibleVideoSources();
+    std::vector<std::wstring> GetAvailableVideoDevicesInfo();
+    void SelectVideoDevice(size_t index);
+    void StartPreview();
 
 private:
-    HRESULT initCaptureGraphBuilder(IGraphBuilder *& pGraph, ICaptureGraphBuilder2 *& pBuild);
+    HRESULT initCaptureGraphBuilder(IGraphBuilder*& pGraph, ICaptureGraphBuilder2*& pBuild);
+    std::vector<VideoDevice> obtainAvailableVideoDevices();
+    void prepareGraph();
 
-    IGraphBuilder *pGraph;
+    IGraphBuilder* pGraph;
     ICaptureGraphBuilder2 *pBuild;
+    CComHolder<IBaseFilter> pCap;
+    CComHolder<IMediaControl> pControl;
+    CComHolder<IMediaEvent> pEvent;
+
+
+    std::vector<VideoDevice> availableDevices;
+    size_t selectedDevice;
 };
 

@@ -146,10 +146,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CVideoCaptureService videoService;
                 try {
                     videoService.Init();
-                    auto devices = videoService.GetPossibleVideoSources();
-                    for (const VideoDevice & device : devices) {
-                        ShowError(device.name);
+                    auto devices = videoService.GetAvailableVideoDevicesInfo();
+                    for (const std::wstring& device : devices) {
+                        ShowError(device);
                     }
+                    videoService.StartPreview();
                 } catch (std::wstring errorMessage) {
                     ShowError(errorMessage);
                 }
