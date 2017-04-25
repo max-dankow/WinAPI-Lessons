@@ -147,7 +147,11 @@
   <ItemGroup>
     <ClInclude Include="EllipseWindow.h" />
     <ClInclude Include="OverlappedWindow.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

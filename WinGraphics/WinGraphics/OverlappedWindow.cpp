@@ -1,5 +1,6 @@
 #include "OverlappedWindow.h"
 #include "Utils.h"
+#include "resource.h"
 #include <assert.h>
 
 void COverlappedWindow::RegisterClass()
@@ -71,6 +72,27 @@ LRESULT COverlappedWindow::windowProc(HWND window, UINT message, WPARAM wParam, 
         }
         return TRUE;
     }
+    case WM_COMMAND: {
+        int wmId = LOWORD(wParam);
+        // TODO: fun decomp ))
+        switch (wmId) {
+        case ID_KEY_UP:
+            pThis->moveFocus(0, -1);
+            break;
+        case ID_KEY_RIGHT:
+            pThis->moveFocus(1, 0);
+            break;
+        case ID_KEY_DOWN:
+            pThis->moveFocus(0, 1);
+            break;
+        case ID_KEY_LEFT:
+            pThis->moveFocus(-1, 0);
+            break;
+        default:
+            return DefWindowProc(window, message, wParam, lParam);
+        }
+        break;
+    }
     case WM_SIZE:
         for (int i = 0; i < pThis->ellipseWindows.size(); ++i) {
             pThis->updateEllipseWindow(i);
@@ -107,4 +129,32 @@ void COverlappedWindow::updateEllipseWindow(int index)
         parentRect.right / 2,
         parentRect.bottom / 2,
         0);
+}
+
+int COverlappedWindow::findActiveEllipseWindow()
+{
+    auto focusedWindow = GetFocus();
+    for (size_t i = 0; i < ellipseWindows.size(); ++i) {
+        if (focusedWindow == ellipseWindows[i].GetWindowHandle()) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void COverlappedWindow::moveFocus(int dCol, int dRow)
+{
+    int focusedIndex = findActiveEllipseWindow();
+    if (focusedIndex < 0) {
+        return;
+    }
+
+    // TODO: DRY
+    int oldCol = focusedIndex % 2;
+    int oldRow = focusedIndex / 2;
+    int newCol = (oldCol + dCol + 2) % 2;
+    int newRow = (oldRow + dRow + 2) % 2;
+    int newIndex = newRow * 2 + newCol;
+    assert(newIndex >= 0 && newIndex < ellipseWindows.size());
+    SetFocus(ellipseWindows[newIndex].GetWindowHandle());
 }
