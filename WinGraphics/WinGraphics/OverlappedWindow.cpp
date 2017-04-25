@@ -13,8 +13,8 @@ void COverlappedWindow::RegisterClass()
     wcx.cbWndExtra = 0;
     wcx.hInstance = GetModuleHandle(NULL);
     wcx.hIcon = NULL;
-    wcx.hCursor = NULL;
-    wcx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcx.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wcx.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     wcx.lpszMenuName = NULL;
     wcx.lpszClassName = ClassName;
     wcx.hIconSm = NULL;
@@ -33,13 +33,24 @@ void COverlappedWindow::Create()
         CW_USEDEFAULT,  // default vertical position
         CW_USEDEFAULT,  // default width
         CW_USEDEFAULT,  // default height
-        (HWND)NULL,  // no owner window
-        (HMENU)NULL,  // use class menu
+        static_cast<HWND>(NULL),  // no owner window
+        static_cast<HMENU>(NULL),  // use class menu
         GetModuleHandle(NULL),  // handle to current application instance
         this);  // ѕередаетс€ чтобы использовать нестатические члены COverlappedWindow в статической windowProc
 
     if (windowHandle == NULL) {
         throw std::runtime_error("Fail to CreateWindow " + std::to_string(GetLastError()));
+    }
+    createEllipseWindows();
+}
+
+void COverlappedWindow::createEllipseWindows()
+{
+    CEllipseWindow::RegisterClassW();
+    ellipseWindows.resize(columnsCount * rowsCount);
+    for (CEllipseWindow& ellipseWindow : ellipseWindows) {
+        ellipseWindow.Create(windowHandle);
+        ellipseWindow.Show(SW_SHOW);
     }
 }
 
@@ -56,55 +67,44 @@ LRESULT COverlappedWindow::windowProc(HWND window, UINT message, WPARAM wParam, 
     COverlappedWindow* pThis = reinterpret_cast<COverlappedWindow*>(GetWindowLongPtr(window, GWLP_USERDATA));
 
     switch (message) {
-    case WM_NCCREATE:
-    {
-        // ѕри создании окна, в параметрах сообщени€ WM_NCCREATE будет this
-        // ¬ этом случае, его нужно запомнить в параметрах окна.
-        pThis = static_cast<COverlappedWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
-        SetWindowLongPtr(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-
-        // —оздаем дочерние CEllipseWindow
-        CEllipseWindow::RegisterClassW();
-        int i = 0;
-        for (CEllipseWindow& ellipseWindow : pThis->ellipseWindows) {
-            ellipseWindow.Create(window);
-            ellipseWindow.Show(SW_SHOW);
+        case WM_NCCREATE:{
+            // ѕри создании окна, в параметрах сообщени€ WM_NCCREATE будет this
+            // ¬ этом случае, его нужно запомнить в параметрах окна.
+            pThis = static_cast<COverlappedWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+            SetWindowLongPtr(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+            return TRUE;
         }
-        return TRUE;
-    }
-    case WM_COMMAND: {
-        int wmId = LOWORD(wParam);
-        // TODO: fun decomp ))
-        switch (wmId) {
-        case ID_KEY_UP:
-            pThis->moveFocus(0, -1);
+        case WM_COMMAND: {
+            int wmId = LOWORD(wParam);
+            switch (wmId) {
+                case ID_KEY_UP:
+                    pThis->moveFocus(0, -1);
+                    break;
+                case ID_KEY_RIGHT:
+                    pThis->moveFocus(1, 0);
+                    break;
+                case ID_KEY_DOWN:
+                    pThis->moveFocus(0, 1);
+                    break;
+                case ID_KEY_LEFT:
+                    pThis->moveFocus(-1, 0);
+                    break;
+                default:
+                    return DefWindowProc(window, message, wParam, lParam);
+            }
             break;
-        case ID_KEY_RIGHT:
-            pThis->moveFocus(1, 0);
+        }
+        case WM_SIZE:
+            pThis->resizeEllipseWindows();
             break;
-        case ID_KEY_DOWN:
-            pThis->moveFocus(0, 1);
-            break;
-        case ID_KEY_LEFT:
-            pThis->moveFocus(-1, 0);
+        case WM_DESTROY:
+            SetWindowLongPtr(window, GWLP_USERDATA, NULL);
+            PostQuitMessage(0);
             break;
         default:
             return DefWindowProc(window, message, wParam, lParam);
-        }
-        break;
     }
-    case WM_SIZE:
-        for (int i = 0; i < pThis->ellipseWindows.size(); ++i) {
-            pThis->updateEllipseWindow(i);
-        }
-        return 0;
-    case WM_DESTROY:
-        SetWindowLongPtr(window, GWLP_USERDATA, NULL);
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(window, message, wParam, lParam);
-    }
+
     if (pThis == NULL) {
         ShowError("Fail to get pointer to COverlappedWindow " + std::to_string(GetLastError()));
         PostQuitMessage(1);
@@ -112,23 +112,29 @@ LRESULT COverlappedWindow::windowProc(HWND window, UINT message, WPARAM wParam, 
     return 0;
 }
 
-// TODO: generalise
-void COverlappedWindow::updateEllipseWindow(int index)
+void COverlappedWindow::resizeEllipseWindow(int index)
 {
-    assert(index >= 0 && index < 4);
-    int col = index % 2;
-    int row = index / 2;
+    assert(index >= 0 && index < ellipseWindows.size());
+    int col = getColumn(index);
+    int row = getRow(index);
     HWND childWindow = ellipseWindows[index].GetWindowHandle();
 
     RECT parentRect;
     GetClientRect(windowHandle, &parentRect);
     SetWindowPos(childWindow,
         HWND_TOP,
-        (parentRect.right / 2) * col,
-        (parentRect.bottom / 2) * row,
-        parentRect.right / 2,
-        parentRect.bottom / 2,
+        (parentRect.right / columnsCount) * col,
+        (parentRect.bottom / rowsCount) * row,
+        parentRect.right / columnsCount,
+        parentRect.bottom / rowsCount,
         0);
+}
+
+void COverlappedWindow::resizeEllipseWindows()
+{
+    for (int i = 0; i < ellipseWindows.size(); ++i) {
+        resizeEllipseWindow(i);
+    }
 }
 
 int COverlappedWindow::findActiveEllipseWindow()
@@ -149,12 +155,13 @@ void COverlappedWindow::moveFocus(int dCol, int dRow)
         return;
     }
 
-    // TODO: DRY
-    int oldCol = focusedIndex % 2;
-    int oldRow = focusedIndex / 2;
-    int newCol = (oldCol + dCol + 2) % 2;
-    int newRow = (oldRow + dRow + 2) % 2;
-    int newIndex = newRow * 2 + newCol;
+    int oldCol = getColumn(focusedIndex);
+    int oldRow = getRow(focusedIndex);
+
+    int newCol = (oldCol + dCol + columnsCount) % columnsCount;
+    int newRow = (oldRow + dRow + rowsCount) % rowsCount;
+    int newIndex = getIndex(newCol, newRow);
     assert(newIndex >= 0 && newIndex < ellipseWindows.size());
+
     SetFocus(ellipseWindows[newIndex].GetWindowHandle());
 }

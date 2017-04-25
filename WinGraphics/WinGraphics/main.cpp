@@ -12,7 +12,7 @@ int WINAPI WinMain(HINSTANCE hinstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     try {
         COverlappedWindow::RegisterClass();
-        COverlappedWindow mainWindow(nCmdShow);
+        COverlappedWindow mainWindow;
         mainWindow.Create();
         mainWindow.Show(nCmdShow);
 
