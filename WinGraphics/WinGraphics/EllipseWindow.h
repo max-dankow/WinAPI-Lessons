@@ -22,16 +22,18 @@ public:
 		left(left), top(top), 
 		height(height), width(width),
 		speedX(10), speedY(10),
-		brush(CreateSolidBrush(RGB(128, 0, 128))) { }
+		brushActive(CreateSolidBrush(RGB(128, 0, 128))),
+        brushNotActive(CreateSolidBrush(RGB(128, 128, 128))) { }
 
 	~CEllipse() {
-		DeleteObject(brush);
+		DeleteObject(brushActive);
 	}
 
-	void draw(HDC context) const {
+	void draw(HDC context, bool isActive) const {
 		CObjectSwitcher penSwitcher(context, GetStockObject(NULL_PEN));
-		CObjectSwitcher brushSwitcher(context, brush);
-		Ellipse(context, left, top, left + width, top + height);
+        auto actualBrush = (isActive) ? brushActive : brushNotActive;
+        CObjectSwitcher brushSwitcher(context, actualBrush);
+        Ellipse(context, left, top, left + width, top + height);
 	}
 
 	void move(RECT border) {
@@ -49,13 +51,13 @@ public:
 private:
 	int left, top, height, width;
 	int speedX, speedY;
-	HBRUSH brush;
+	HBRUSH brushActive, brushNotActive;
 };
 
 class CEllipseWindow 
 {
 public:
-	CEllipseWindow(const std::wstring title = L"Main window") : title(title), ellipse(0, 0, 50, 100) { }
+	CEllipseWindow(const std::wstring title = L"Main window") : title(title), ellipse(0, 0, 50, 100), wasActive(false) { }
 
 	// Зарегистрировать класс окна
 	static void RegisterClass();
@@ -82,9 +84,14 @@ private:
 	std::wstring title;
 	HWND windowHandle; // хэндл окна
 	UINT_PTR timer;
+    bool wasActive;
 
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
     // TODO: вынести таймер в оконную процедуру
 	void StartTimer() const;
 	void StopTimer() const;
+    bool isFocused() {
+        HWND focusedWindow = GetFocus();
+        return focusedWindow == windowHandle;
+    }
 };

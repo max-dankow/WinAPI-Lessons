@@ -104,6 +104,9 @@ LRESULT CALLBACK CEllipseWindow::windowProc(HWND handle, UINT message, WPARAM wP
 	case WM_TIMER:
 		pThis->OnTimer();
 		break;
+    case WM_LBUTTONDOWN:
+        SetFocus(handle);
+        return 0;
 	case WM_DESTROY:
 		SetWindowLongPtr(handle, GWLP_USERDATA, NULL);
 		pThis->StopTimer();
@@ -139,7 +142,8 @@ void CEllipseWindow::OnDraw()
 	FillRect(hdcMem, &rc, hbrBkGnd);
 	DeleteObject(hbrBkGnd);
 	
-	ellipse.draw(hdcMem);
+    Rectangle(hdcMem, rc.left, rc.top, rc.right, rc.bottom);
+	ellipse.draw(hdcMem, isFocused());
 
 	BitBlt(context,
 		rc.left, rc.top,
@@ -157,6 +161,12 @@ void CEllipseWindow::OnTimer()
 {
 	RECT rect;
 	GetClientRect(windowHandle, &rect);
-	ellipse.move(rect);
-	InvalidateRect(windowHandle, NULL, TRUE);
+    if (isFocused()) {
+        wasActive = true;
+        ellipse.move(rect);
+        InvalidateRect(windowHandle, NULL, TRUE);
+    } else {
+        wasActive = false;
+        InvalidateRect(windowHandle, NULL, TRUE);
+    }
 }
