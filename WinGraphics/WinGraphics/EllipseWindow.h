@@ -2,11 +2,15 @@
 #include <Windows.h>
 #include <string>
 
+// Переключает GDI объект, при разрушении устанавливает изначальный объект
 class CObjectSwitcher {
 public:
 	CObjectSwitcher(HDC context, HGDIOBJ newObject) : context(context) {
 		previous = SelectObject(context, newObject);
 	}
+
+    CObjectSwitcher(const CObjectSwitcher&) = delete;
+    CObjectSwitcher operator=(const CObjectSwitcher&) = delete;
 
 	~CObjectSwitcher() {
 		SelectObject(context, previous);
@@ -18,25 +22,25 @@ private:
 
 class CEllipse {
 public:
-	CEllipse(int left, int top, int height, int width) : 
+	CEllipse(int left, int top, int height, int width, int speedX=5, int speedY=5) : 
 		left(left), top(top), 
 		height(height), width(width),
-		speedX(10), speedY(10),
-		brushActive(CreateSolidBrush(RGB(128, 0, 128))),
-        brushNotActive(CreateSolidBrush(RGB(128, 128, 128))) { }
+		speedX(speedX), speedY(speedY),
+		brushActive(CreateSolidBrush(DefaultBrushColorActive)),
+        brushNotActive(CreateSolidBrush(DefaultBrushColorNotActive)) { }
 
 	~CEllipse() {
 		DeleteObject(brushActive);
 	}
 
-	void draw(HDC context, bool isActive) const {
+	void Draw(HDC context, bool isActive) const {
 		CObjectSwitcher penSwitcher(context, GetStockObject(NULL_PEN));
         auto actualBrush = (isActive) ? brushActive : brushNotActive;
         CObjectSwitcher brushSwitcher(context, actualBrush);
         Ellipse(context, left, top, left + width, top + height);
 	}
 
-	void move(RECT border) {
+	void Move(RECT border) {
 		int bottom = top + height;
 		if (top + speedY < border.top || bottom + speedY > border.bottom) {
 			speedY *= -1;
@@ -48,24 +52,22 @@ public:
 		top += speedY;
 		left += speedX;
 	}
+
 private:
+    static const COLORREF DefaultBrushColorActive = RGB(128, 0, 128);
+    static const COLORREF DefaultBrushColorNotActive = RGB(128, 128, 128);
 	int left, top, height, width;
 	int speedX, speedY;
 	HBRUSH brushActive, brushNotActive;
 };
 
-class CEllipseWindow 
+class CEllipseWindow
 {
 public:
-	CEllipseWindow(const std::wstring title = L"Main window") : title(title), ellipse(0, 0, 50, 100), wasActive(false) { }
+	CEllipseWindow(const std::wstring title = L"Ellipse") : title(title), ellipse(0, 0, 50, 100), wasActive(false) { }
 
-	// Зарегистрировать класс окна
 	static void RegisterClass();
-
-	// Создать экземпляр окна
 	void Create(HWND parentWindow = NULL);
-
-	// Показать окно
 	void Show(int cmdShow) const;
 
     HWND GetWindowHandle() const {
@@ -78,18 +80,14 @@ protected:
 	void OnTimer();
 private:
 	static constexpr wchar_t* ClassName = L"CEllipseWindow";
-	static const int TimerElapseMs = 100;
 
 	CEllipse ellipse;
 	std::wstring title;
-	HWND windowHandle; // хэндл окна
-	UINT_PTR timer;
+	HWND windowHandle;
     bool wasActive;
 
 	static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
-    // TODO: вынести таймер в оконную процедуру
-	void StartTimer() const;
-	void StopTimer() const;
+
     bool isFocused() {
         HWND focusedWindow = GetFocus();
         return focusedWindow == windowHandle;

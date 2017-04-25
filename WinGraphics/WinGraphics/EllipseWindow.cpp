@@ -10,6 +10,10 @@ public:
 	CDeviceContext(HWND hWnd, LPPAINTSTRUCT paintStruct) : window(hWnd), paintStruct(paintStruct) {
 		context = BeginPaint(hWnd, paintStruct);
 	}
+
+    CDeviceContext(const CDeviceContext&) = delete;
+    CDeviceContext operator=(const CDeviceContext&) = delete;
+
 	~CDeviceContext() {
 		EndPaint(window, paintStruct);
 	}
@@ -17,13 +21,13 @@ public:
 	HDC getContext() const {
 		return context;
 	}
-	// todo: delete copy constructor
+
 private:
 	HDC context;
 	HWND window;
 	LPPAINTSTRUCT paintStruct;
 };
-// TODO: убрать —-cast
+
 // —тоит заметить, что из-за define RegisterClass RegisterClassW теперь везде происходит замена.
 void CEllipseWindow::RegisterClass()
 {
@@ -35,8 +39,8 @@ void CEllipseWindow::RegisterClass()
 	wcx.cbWndExtra = 0;
 	wcx.hInstance = GetModuleHandle(NULL);
 	wcx.hIcon = NULL;
-	wcx.hCursor = NULL;
-	wcx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcx.hCursor = LoadCursor(NULL, IDC_HAND);
+	wcx.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
 	wcx.lpszMenuName = NULL;
 	wcx.lpszClassName = ClassName;
 	wcx.hIconSm = NULL;
@@ -49,17 +53,17 @@ void CEllipseWindow::Create(HWND parentWindow)
 {
     auto style = (parentWindow == NULL) ? WS_OVERLAPPEDWINDOW : WS_CHILD;
 	windowHandle = CreateWindow(
-	ClassName,  // name of window class
-	title.c_str(),  // title-bar string
-	style,
-	CW_USEDEFAULT,  // default horizontal position
-	CW_USEDEFAULT,  // default vertical position
-	CW_USEDEFAULT,  // default width
-	CW_USEDEFAULT,  // default height
-	parentWindow,
-	(HMENU)NULL,  // use class menu
-	GetModuleHandle(NULL),  // handle to current application instance
-	this);  // ѕередаетс€ чтобы использовать нестатические члены COverlappedWindow в статической windowProc
+	    ClassName,  // name of window class
+	    title.c_str(),  // title-bar string
+	    style,
+	    CW_USEDEFAULT,  // default horizontal position
+	    CW_USEDEFAULT,  // default vertical position
+	    CW_USEDEFAULT,  // default width
+	    CW_USEDEFAULT,  // default height
+	    parentWindow,
+	    static_cast<HMENU>(NULL),
+	    GetModuleHandle(NULL),  // handle to current application instance
+	    this);  // ѕередаетс€ чтобы использовать нестатические члены CEllipseWindow в статической windowProc
 
 	if (windowHandle == NULL) {
 		throw std::runtime_error("Fail to CreateWindow " + std::to_string(GetLastError()));
@@ -71,58 +75,51 @@ void CEllipseWindow::Show(int cmdShow) const
 	// Show the window and send a WM_PAINT message to the window procedure. 
 	ShowWindow(windowHandle, cmdShow);
 	UpdateWindow(windowHandle);
-	StartTimer();
 }
 
-void CEllipseWindow::StartTimer() const
-{
-	SetTimer(windowHandle, 1, TimerElapseMs, NULL);
-}
-
-void CEllipseWindow::StopTimer() const
-{
-	KillTimer(windowHandle, 1);
-}
-
-LRESULT CALLBACK CEllipseWindow::windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK CEllipseWindow::windowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	// ¬осстанавливаем указатель this на CEllipseWindow
-	CEllipseWindow* pThis = reinterpret_cast<CEllipseWindow*>(GetWindowLongPtr(handle, GWLP_USERDATA));
+	CEllipseWindow* pThis = reinterpret_cast<CEllipseWindow*>(GetWindowLongPtr(windowHandle, GWLP_USERDATA));
+    if (pThis == NULL && message != WM_NCCREATE) {
+        ShowError("Fail to get pointer to CEllipseWindow " + std::to_string(GetLastError()));
+        PostQuitMessage(1);
+    }
 
 	switch (message) {
 	case WM_NCCREATE:
 		// ѕри создании окна, в параметрах сообщени€ WM_NCCREATE будет this
 		// ¬ этом случае, его нужно запомнить в параметрах окна.
 		pThis = static_cast<CEllipseWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
-		SetWindowLongPtr(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+		SetWindowLongPtr(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+
+        SetTimer(windowHandle, 1, 30, NULL);
 		return TRUE;
 	case WM_PAINT:
 		pThis->OnDraw();
 		break;
 	case WM_ERASEBKGND:
-		return (LRESULT)1; // Say we handled it.
+		return static_cast<LRESULT> (1);
 	case WM_TIMER:
 		pThis->OnTimer();
 		break;
     case WM_LBUTTONDOWN:
-        SetFocus(handle);
-        return 0;
+        SetFocus(windowHandle);
+        break;
 	case WM_DESTROY:
-		SetWindowLongPtr(handle, GWLP_USERDATA, NULL);
-		pThis->StopTimer();
+		SetWindowLongPtr(windowHandle, GWLP_USERDATA, NULL);
+        KillTimer(windowHandle, 1);
 		pThis->OnDestroy();
 		PostQuitMessage(0);
 		break;
 	default:
-		return DefWindowProc(handle, message, wParam, lParam);
+		return DefWindowProc(windowHandle, message, wParam, lParam);
 	}
-	if (pThis == NULL) {
-		ShowError("Fail to get pointer to CEllipseWindow " + std::to_string(GetLastError()));
-		PostQuitMessage(1);
-	}
+	
 	return 0;
 }
 
+// TODO: refactor
 void CEllipseWindow::OnDraw()
 {
 	PAINTSTRUCT paintStruct;
@@ -143,14 +140,12 @@ void CEllipseWindow::OnDraw()
 	DeleteObject(hbrBkGnd);
 	
     Rectangle(hdcMem, rc.left, rc.top, rc.right, rc.bottom);
-	ellipse.draw(hdcMem, isFocused());
+	ellipse.Draw(hdcMem, isFocused());
 
 	BitBlt(context,
 		rc.left, rc.top,
 		rc.right - rc.left, rc.bottom - rc.top,
-		hdcMem,
-		0, 0,
-		SRCCOPY);
+		hdcMem, 0, 0, SRCCOPY);
 
 	SelectObject(hdcMem, hbmOld);
 	DeleteObject(hbmMem);
@@ -163,9 +158,10 @@ void CEllipseWindow::OnTimer()
 	GetClientRect(windowHandle, &rect);
     if (isFocused()) {
         wasActive = true;
-        ellipse.move(rect);
+        ellipse.Move(rect);
         InvalidateRect(windowHandle, NULL, TRUE);
     } else {
+        // ≈сли только что окно перестало быть активным, то нужно перерисовать в неактивном состо€нии
         wasActive = false;
         InvalidateRect(windowHandle, NULL, TRUE);
     }
