@@ -140,10 +140,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="EllipseWindow.cpp" />
     <ClCompile Include="OverlappedWindow.cpp" />
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EllipseWindow.h" />
     <ClInclude Include="OverlappedWindow.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
