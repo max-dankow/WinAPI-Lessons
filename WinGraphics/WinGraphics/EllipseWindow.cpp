@@ -107,8 +107,6 @@ LRESULT CALLBACK CEllipseWindow::windowProc(HWND windowHandle, UINT message, WPA
         SetFocus(windowHandle);
         break;
 	case WM_DESTROY:
-		SetWindowLongPtr(windowHandle, GWLP_USERDATA, NULL);
-        KillTimer(windowHandle, 1);
 		pThis->OnDestroy();
 		PostQuitMessage(0);
 		break;
@@ -117,6 +115,12 @@ LRESULT CALLBACK CEllipseWindow::windowProc(HWND windowHandle, UINT message, WPA
 	}
 	
 	return 0;
+}
+
+void CEllipseWindow::OnDestroy()
+{
+    SetWindowLongPtr(windowHandle, GWLP_USERDATA, NULL);
+    KillTimer(windowHandle, 1);
 }
 
 // TODO: refactor

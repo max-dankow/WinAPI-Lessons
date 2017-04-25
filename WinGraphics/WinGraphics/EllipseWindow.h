@@ -75,7 +75,7 @@ public:
     }
 
 protected:
-	void OnDestroy() { }
+    void OnDestroy();
 	void OnDraw();
 	void OnTimer();
 private:
