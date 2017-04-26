@@ -91,7 +91,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>Strmiids.lib;Quartz.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Strmiids.lib;Quartz.lib;d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

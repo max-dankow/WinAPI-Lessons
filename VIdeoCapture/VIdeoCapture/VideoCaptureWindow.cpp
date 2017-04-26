@@ -1,6 +1,30 @@
 ﻿#include "VideoCaptureWindow.h"
 #include "Utils.h"
 
+class CDeviceContext
+{
+public:
+    CDeviceContext(HWND hWnd, LPPAINTSTRUCT paintStruct) : window(hWnd), paintStruct(paintStruct) {
+        context = BeginPaint(hWnd, paintStruct);
+    }
+
+    CDeviceContext(const CDeviceContext&) = delete;
+    CDeviceContext operator=(const CDeviceContext&) = delete;
+
+    ~CDeviceContext() {
+        EndPaint(window, paintStruct);
+    }
+
+    HDC getContext() const {
+        return context;
+    }
+
+private:
+    HDC context;
+    HWND window;
+    LPPAINTSTRUCT paintStruct;
+};
+
 void CVideoCaptureWindow::RegisterClass()
 {
     WNDCLASSEX wcx;
@@ -28,8 +52,8 @@ void CVideoCaptureWindow::Create(HWND parentWindow)
         ClassName,  // name of window class
         title.c_str(),  // title-bar string
         style,
-        0,  // default horizontal position
-        0,  // default vertical position
+        100,  // default horizontal position
+        100,  // default vertical position
         400,  // default width
         300,  // default height
         parentWindow,
@@ -66,6 +90,18 @@ void CVideoCaptureWindow::StartPreview()
     }
 }
 
+void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, BITMAPINFOHEADER *pDIBImage)
+{
+    HDC hMemDC;
+    auto hBitmap = CreateDIBitmap(hDC, pDIBImage, CBM_INIT, reinterpret_cast<byte*>(pDIBImage + 1), reinterpret_cast<BITMAPINFO*>(pDIBImage), DIB_RGB_COLORS);
+
+    hMemDC = CreateCompatibleDC(hDC);
+    hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+    BitBlt(hDC, 200, 200, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
+    DeleteObject(SelectObject(hMemDC, hBitmap));
+    DeleteDC(hMemDC);
+}
+
 LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
     // Получаем указатель на объект соответствующего класса
@@ -77,13 +113,18 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         pThis = static_cast<CVideoCaptureWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
         SetWindowLongPtr(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
 
-       
 
         return TRUE;
     case WM_CREATE:
         break;
     case WM_PAINT:
         //pThis->OnDraw();
+        if (pThis->pDIBImage != NULL) {
+            PAINTSTRUCT paintStruct;
+            CDeviceContext contextHolder(windowHandle, &paintStruct);
+            HDC context = contextHolder.getContext();
+            pThis->dispayDIBitmap(context, pThis->pDIBImage);
+        }
         break;
     case WM_DESTROY:
         //pThis->OnDestroy();

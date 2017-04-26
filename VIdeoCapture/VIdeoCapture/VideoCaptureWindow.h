@@ -13,6 +13,10 @@ public:
     void Create(HWND parentWindow = NULL);
     void Show(int cmdShow) const;
     void StartPreview();
+    void ObtainCurrentImage() {
+        pDIBImage = videoCaptureService.ObtainCurrentImage();
+        UpdateWindow(windowHandle);
+    }
 
     HWND GetWindowHandle() const {
         return windowHandle;
@@ -27,7 +31,9 @@ private:
 
     std::wstring title;
     HWND windowHandle;
+    BITMAPINFOHEADER* pDIBImage = NULL;
     CVideoCaptureService videoCaptureService;
+    void dispayDIBitmap(HDC hDc, BITMAPINFOHEADER *pDIBImage);
 
     static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
 };

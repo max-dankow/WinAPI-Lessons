@@ -3,7 +3,7 @@
 
 void ShowError(const std::wstring &message)
 {
-	MessageBoxW(0, message.c_str(), TEXT("Error"), MB_OK | MB_ICONERROR);
+    MessageBoxW(0, message.c_str(), TEXT("Error"), MB_OK | MB_ICONERROR);
 }
 
 std::wstring ErrorMessage(const std::wstring &message, DWORD errorCode) {
@@ -13,7 +13,7 @@ std::wstring ErrorMessage(const std::wstring &message, DWORD errorCode) {
 std::wstring convertHex(int n)
 {
     std::wstringstream stream;
-    stream << std::hex << n;
+    stream << L"0x" << std::hex << n;
     return stream.str();
 }
 

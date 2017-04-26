@@ -1,6 +1,8 @@
 #pragma once
 #include <windows.h>
 #include <dshow.h>
+#include <d3d9.h>
+#include <vmr9.h>
 #include <vector>
 
 template <typename T>
@@ -47,6 +49,7 @@ public:
     std::vector<std::wstring> GetAvailableVideoDevicesInfo();
     void SelectVideoDevice(size_t index);
     void StartPreview();
+    BITMAPINFOHEADER* ObtainCurrentImage();
 
     static const UINT MessageMediaEvent = WM_APP + 1;
 
@@ -63,6 +66,12 @@ private:
     CComHolder<IMediaEvent> pEvent;
     CComHolder<IVideoWindow> videoWindow;
     CComHolder<IBaseFilter> pCap;
+    CComHolder<IBaseFilter> pVmr;
+    CComHolder<IMediaControl> pMC;
+    CComHolder<IVMRMixerControl9> pMix;
+    CComHolder<IVMRFilterConfig9> pConfig;
+    CComHolder<IVMRWindowlessControl9> pWC;
+    CComHolder<IBasicVideo> basicVideo;
 
     HWND window;
     std::vector<VideoDevice> availableDevices;

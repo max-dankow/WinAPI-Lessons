@@ -20,7 +20,7 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
 
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
-HWND InitInstance(HINSTANCE hInstance, int nCmdShow);
+HWND InitInstance(HINSTANCE hInstance, int nCmdShow, CVideoCaptureWindow* captureWindow);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
@@ -36,15 +36,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_VIDEOCAPTURE, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
+    CVideoCaptureWindow videoWindow;
 
     // Выполнить инициализацию приложения:
-    auto mainWindow = InitInstance(hInstance, nCmdShow);
+    auto mainWindow = InitInstance(hInstance, nCmdShow, &videoWindow);
     if (!mainWindow) {
         return 1;
     }
 
-    CVideoCaptureWindow videoWindow;
-    
     try {
         CVideoCaptureWindow::RegisterClass();
         videoWindow.Create(mainWindow);
@@ -93,12 +92,12 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-HWND InitInstance(HINSTANCE hInstance, int nCmdShow)
+HWND InitInstance(HINSTANCE hInstance, int nCmdShow, CVideoCaptureWindow* captureWindow)
 {
    hInst = hInstance; // Сохранить дескриптор экземпляра в глобальной переменной
 
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, captureWindow);
 
    if (!hWnd)
    {
@@ -113,8 +112,15 @@ HWND InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    CVideoCaptureWindow* videoWindow = reinterpret_cast<CVideoCaptureWindow*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+
     switch (message)
     {
+    case WM_NCCREATE:
+        // Запоминаем указатель на объект соответствующего класса при запуске
+        videoWindow = static_cast<CVideoCaptureWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+        SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(videoWindow));
+        return TRUE;
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
@@ -128,6 +134,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+                break;
+            case ID_TAKE:
+                try {
+                    videoWindow->ObtainCurrentImage();
+                }
+                catch (std::wstring e) {
+                    ShowError(e);
+                }
                 break;
             case IDM_EXIT:
                 DestroyWindow(hWnd);
@@ -150,6 +164,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+
+    if (videoWindow == NULL) {
+        ShowError(L"Fail to get pointer to window class " + std::to_wstring(GetLastError()));
+        PostQuitMessage(1);
     }
     return 0;
 }
