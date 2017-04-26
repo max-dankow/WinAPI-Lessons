@@ -47,14 +47,15 @@ void CVideoCaptureWindow::RegisterClass()
 
 void CVideoCaptureWindow::Create(HWND parentWindow)
 {
+    // TODO: no constatns
     auto style = (parentWindow == NULL) ? WS_OVERLAPPEDWINDOW : WS_CHILD;
     windowHandle = CreateWindow(
         ClassName,  // name of window class
         title.c_str(),  // title-bar string
-        style,
-        100,  // default horizontal position
-        100,  // default vertical position
-        400,  // default width
+        style | WS_BORDER,
+        0,  // default horizontal position
+        0,  // default vertical position
+        800,  // default width
         300,  // default height
         parentWindow,
         static_cast<HMENU>(NULL),
@@ -97,7 +98,7 @@ void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, BITMAPINFOHEADER *pDIBImage)
 
     hMemDC = CreateCompatibleDC(hDC);
     hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
-    BitBlt(hDC, 200, 200, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
+    BitBlt(hDC, staticImageRect.left, staticImageRect.top, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
     DeleteObject(SelectObject(hMemDC, hBitmap));
     DeleteDC(hMemDC);
 }
@@ -116,7 +117,13 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
 
         return TRUE;
     case WM_CREATE:
+        SetTimer(windowHandle, 1, 1000, NULL);
         break;
+    case WM_TIMER:
+        pThis->ObtainCurrentImage();
+        break;
+    case WM_ERASEBKGND:
+        return 1;
     case WM_PAINT:
         //pThis->OnDraw();
         if (pThis->pDIBImage != NULL) {

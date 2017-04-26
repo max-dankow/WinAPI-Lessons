@@ -60,6 +60,7 @@ private:
     void setupVideoWindow();
     void resizeVideoWindow();
 
+    // TODO: to ComHolder
     IGraphBuilder* pGraph;
     ICaptureGraphBuilder2 *pBuild;
     CComHolder<IMediaControl> pControl;

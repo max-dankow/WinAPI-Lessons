@@ -146,6 +146,20 @@ void CVideoCaptureService::StartPreview()
     prepareGraph();
     //setupVideoWindow();
     ThrowIfError(L"Graph Run error", pControl.object->Run());
+    long width, height;
+
+    ThrowIfError(L"GetNativeVideoSize", pWC.object->GetNativeVideoSize(&width, &height, NULL, NULL));
+
+    // explicitly convert System::Drawing::Rectangle type to RECT type
+    // TODO: this
+    RECT rcDest;
+    rcDest.top = 0;
+    rcDest.bottom = height;
+    rcDest.left = 0;
+    rcDest.right = width;
+
+    // set destination rectangle for the video
+    pWC.object->SetVideoPosition(NULL, &rcDest);
     long evCode = 0;
 }
 
@@ -164,6 +178,7 @@ BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
     return (BITMAPINFOHEADER*)lpDib; // TODO: leak  -> CoTaskMemFree(lpDib);
 }
 
+// TODO: depricated
 void CVideoCaptureService::resizeVideoWindow()
 {
     // Resize the video preview window to match owner window size
@@ -202,17 +217,6 @@ void CVideoCaptureService::prepareGraph()
     // get a pointer to the IVMRWindowlessControl9 interface
     ThrowIfError(L"IVMRWindowlessControl9", pVmr.object->QueryInterface(IID_IVMRWindowlessControl9, (void**)&pWC.object));
 
-    // explicitly convert System::Drawing::Rectangle type to RECT type
-    // TODO: this
-    RECT rcDest = { 0 };
-    rcDest.bottom = 50;
-    rcDest.left = 100;
-    rcDest.right = 200;
-    rcDest.top = 0;
-
-    // set destination rectangle for the video
-    pWC.object->SetVideoPosition(NULL, &rcDest);
-
     // specify the container window that the video should be clipped to    
     pWC.object->SetVideoClippingWindow(window);
     // IVMRMixerControl manipulates video streams
@@ -222,6 +226,7 @@ void CVideoCaptureService::prepareGraph()
     ThrowIfError(L"Creating Render Graph", pBuild->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, pVmr.object));
     ThrowIfError(L"IMediaControl", pGraph->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
     ThrowIfError(L"IMediaEvent", pGraph->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
+    // TODO: depricated
     //ThrowIfError(L"IVideoWindow", pGraph->QueryInterface(IID_IVideoWindow, (LPVOID *)&videoWindow.object));
     //ThrowIfError(L"IBasicVideo", pGraph->QueryInterface(IID_IBasicVideo, (LPVOID *)&basicVideo.object));
 }

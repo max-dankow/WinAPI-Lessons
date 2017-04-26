@@ -15,6 +15,7 @@ public:
     void StartPreview();
     void ObtainCurrentImage() {
         pDIBImage = videoCaptureService.ObtainCurrentImage();
+        InvalidateRect(windowHandle, &staticImageRect, FALSE);
         UpdateWindow(windowHandle);
     }
 
@@ -33,6 +34,8 @@ private:
     HWND windowHandle;
     BITMAPINFOHEADER* pDIBImage = NULL;
     CVideoCaptureService videoCaptureService;
+    RECT staticImageRect = { 400, 0, 800, 300 };
+
     void dispayDIBitmap(HDC hDc, BITMAPINFOHEADER *pDIBImage);
 
     static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
