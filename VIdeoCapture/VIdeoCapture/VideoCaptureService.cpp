@@ -1,8 +1,5 @@
-#include "VideoCaptureService.h"
+﻿#include "VideoCaptureService.h"
 #include "Utils.h"
-
-
-CVideoCaptureService::CVideoCaptureService(HWND window) : pGraph(NULL), pBuild(NULL), window(window) { }
 
 CVideoCaptureService::~CVideoCaptureService()
 {
@@ -15,8 +12,9 @@ CVideoCaptureService::~CVideoCaptureService()
     }
 }
 
-void CVideoCaptureService::Init()
+void CVideoCaptureService::Init(HWND window)
 {
+    this->window = window;
     ThrowIfError(L"Fail to initialize Capture Graph Builder", initCaptureGraphBuilder(pGraph, pBuild));
     availableDevices = obtainAvailableVideoDevices();
     SelectVideoDevice(0);
@@ -142,11 +140,13 @@ void CVideoCaptureService::StartPreview()
     if (pCap.object == NULL) {
         throw std::wstring(L"Video Device is not selected");
     }
+    if (window == NULL) {
+        throw std::wstring(L"No parent window");
+    }
     prepareGraph();
     setupVideoWindow();
     ThrowIfError(L"Graph Run error", pControl.object->Run());
     long evCode = 0;
-    pEvent.object->WaitForCompletion(INFINITE, &evCode);
 }
 
 void CVideoCaptureService::resizeVideoWindow()
@@ -156,7 +156,7 @@ void CVideoCaptureService::resizeVideoWindow()
         RECT rc;
         // Make the preview video fill our window
         GetClientRect(window, &rc);
-        videoWindow.object->SetWindowPosition(0, 0, 800, 600);
+        videoWindow.object->SetWindowPosition(0, 0, 400, 300);
     }
 }
 

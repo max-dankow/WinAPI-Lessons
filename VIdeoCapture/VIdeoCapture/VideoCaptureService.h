@@ -23,9 +23,10 @@ public:
         other.object = NULL;
     }
 
+    // TODO: постоянно исключение с IbaseFilter
     ~CComHolder() {
         if (object != NULL) {
-            object->Release();
+            //object->Release();
         }
     }
     T *object;
@@ -39,13 +40,15 @@ struct VideoDevice {
 class CVideoCaptureService
 {
 public:
-    CVideoCaptureService(HWND window);
+    CVideoCaptureService::CVideoCaptureService() : pGraph(NULL), pBuild(NULL), window(NULL) { }
     ~CVideoCaptureService();
    
-    void Init();
+    void Init(HWND window);
     std::vector<std::wstring> GetAvailableVideoDevicesInfo();
     void SelectVideoDevice(size_t index);
     void StartPreview();
+
+    static const UINT MessageMediaEvent = WM_APP + 1;
 
 private:
     HRESULT initCaptureGraphBuilder(IGraphBuilder*& pGraph, ICaptureGraphBuilder2*& pBuild);
@@ -54,13 +57,12 @@ private:
     void setupVideoWindow();
     void resizeVideoWindow();
 
-
     IGraphBuilder* pGraph;
     ICaptureGraphBuilder2 *pBuild;
-    CComHolder<IBaseFilter> pCap;
     CComHolder<IMediaControl> pControl;
     CComHolder<IMediaEvent> pEvent;
     CComHolder<IVideoWindow> videoWindow;
+    CComHolder<IBaseFilter> pCap;
 
     HWND window;
     std::vector<VideoDevice> availableDevices;

@@ -145,6 +145,7 @@
     <ClInclude Include="Utils.h" />
     <ClInclude Include="VIdeoCapture.h" />
     <ClInclude Include="VideoCaptureService.h" />
+    <ClInclude Include="VideoCaptureWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -156,6 +157,7 @@
     <ClCompile Include="Utils.cpp" />
     <ClCompile Include="VIdeoCapture.cpp" />
     <ClCompile Include="VideoCaptureService.cpp" />
+    <ClCompile Include="VideoCaptureWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="VIdeoCapture.rc" />

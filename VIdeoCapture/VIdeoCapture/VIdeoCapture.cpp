@@ -9,7 +9,7 @@
 #include <exception>
 
 #include "Utils.h"
-#include "VideoCaptureService.h"
+#include "VideoCaptureWindow.h"
 
 #define MAX_LOADSTRING 100
 
@@ -20,39 +20,9 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
 
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
+HWND InitInstance(HINSTANCE hInstance, int nCmdShow);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-
-void TryDirectShow() 
-{
-	HRESULT hr = CoInitialize(NULL);
-    ThrowIfError(L"CoInitialize", hr);
-
-    IGraphBuilder *pGraph;
-    // TODO: get rid of C-cast
-    hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void **)&pGraph);
-    ThrowIfError(L"CoCreateInstance", hr);
-
-    IMediaControl *pControl;
-    hr = pGraph->QueryInterface(IID_IMediaControl, (void **)&pControl);
-    ThrowIfError(L"IMediaControl", hr);
-
-    IMediaEvent *pEvent;
-    hr = pGraph->QueryInterface(IID_IMediaEvent, (void **)&pEvent);
-    ThrowIfError(L"IMediaEvent", hr);
-
-    hr = pGraph->RenderFile(L"C:\\1.asf", NULL);
-    ThrowIfError(L"RenderFile", hr);
-
-    hr = pControl->Run();
-    ThrowIfError(L"Run", hr);
-
-    long evCode = 0;
-    pEvent->WaitForCompletion(INFINITE, &evCode);
-
-    // TODO: resource closing
-}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -68,13 +38,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MyRegisterClass(hInstance);
 
     // Выполнить инициализацию приложения:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
+    auto mainWindow = InitInstance(hInstance, nCmdShow);
+    if (!mainWindow) {
+        return 1;
+    }
+
+    CVideoCaptureWindow videoWindow;
+    
+    try {
+        CVideoCaptureWindow::RegisterClass();
+        videoWindow.Create(mainWindow);
+        videoWindow.Show(nCmdShow);
+        videoWindow.StartPreview();
+    }
+    catch (std::wstring errorMessage) {
+        ShowError(errorMessage);
     }
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_VIDEOCAPTURE));
-
     MSG msg;
 
     // Цикл основного сообщения:
@@ -112,7 +93,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+HWND InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Сохранить дескриптор экземпляра в глобальной переменной
 
@@ -121,13 +102,13 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    if (!hWnd)
    {
-      return FALSE;
+      return hWnd;
    }
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
-   return TRUE;
+   return hWnd;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -142,18 +123,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
             case ID_FILE_PLAY:
             {
-                // TODO: do not lock main thread
-                CVideoCaptureService videoService(hWnd);
-                try {
-                    videoService.Init();
-                    auto devices = videoService.GetAvailableVideoDevicesInfo();
-                    for (const std::wstring& device : devices) {
-                        ShowError(device);
-                    }
-                    videoService.StartPreview();
-                } catch (std::wstring errorMessage) {
-                    ShowError(errorMessage);
-                }
+                // TODO: implement this point
                 break;
             }
             case IDM_ABOUT:
