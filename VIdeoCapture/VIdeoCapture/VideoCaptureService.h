@@ -43,20 +43,29 @@ struct VideoDevice {
 class CVideoCaptureService
 {
 public:
-    CVideoCaptureService::CVideoCaptureService() : graph(NULL), build(NULL), window(NULL) { }
+    CVideoCaptureService::CVideoCaptureService() : graph(NULL), build(NULL), clientWindow(NULL) { }
 
+    // Необходимо вызывать перед началом каких-либо действий с сервисом.
+    // HWND window - окно в которое встраивается сервис.
+    // Создает нужные COM объекты, выбирает стандартное устройство видеозахвата.
     void Init(HWND window);
+
     std::vector<std::wstring> GetAvailableVideoDevicesInfo();
+
+    // Устанавливает порядковый номер устройства захвата(согласно GetAvailableVideoDevicesInfo()),
+    // которое следует использовать.
     void SelectVideoDevice(size_t index);
+
     void StartPreview();
     BITMAPINFOHEADER* ObtainCurrentImage();
 
-    static const UINT MessageMediaEvent = WM_APP + 1;
+    static const UINT MediaEventMessage = WM_APP + 1;
 
 private:
-    HRESULT CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build);
+    void CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build);
     std::vector<VideoDevice> obtainAvailableVideoDevices();
     void prepareGraph();
+    void prepareRenderer();
 
     CComHolder<IGraphBuilder> graph;
     CComHolder<ICaptureGraphBuilder2> build;
@@ -69,7 +78,8 @@ private:
     CComHolder<IVMRFilterConfig9> pConfig;
     CComHolder<IVMRWindowlessControl9> pWC;
 
-    HWND window;
+    // Окно использущее сервис
+    HWND clientWindow;
     std::vector<VideoDevice> availableDevices;
     size_t selectedDevice;
 };

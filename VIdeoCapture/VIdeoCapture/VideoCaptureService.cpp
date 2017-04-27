@@ -1,59 +1,45 @@
 ﻿#include "VideoCaptureService.h"
+#include <assert.h>
 #include "Utils.h"
 
+// TODO: возможно перенести сюда initGraph
 void CVideoCaptureService::Init(HWND window)
 {
-    this->window = window;
-    ThrowIfError(L"Fail to initialize Capture Graph Builder", initCaptureGraphBuilder(graph, build));
-    availableDevices = obtainAvailableVideoDevices();
-    SelectVideoDevice(0);
+    clientWindow = window;
+    try {
+        initCaptureGraphBuilder(graph, build);
+        availableDevices = obtainAvailableVideoDevices();
+        SelectVideoDevice(0);
+    }
+    catch (std::wstring e) {
+        ShowError(L"Error during initialization of VideoCaptureService: " + e);
+    }
 }
 
-// The caller must release both interfaces.
-HRESULT CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build)
+void CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build)
 {
     if (graph.object != NULL || build.object != NULL)
     {
-        return E_POINTER;
+        return;
     }
 
-    // Create the Capture Graph Builder.
-    HRESULT hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&build);
-    if (SUCCEEDED(hr))
-    {
-        // Create the Filter Graph Manager.
-        hr = CoCreateInstance(CLSID_FilterGraph, 0, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&graph);
-        if (SUCCEEDED(hr)) {
-            // Initialize the Capture Graph Builder.
-            build.object->SetFiltergraph(graph.object);
-            return S_OK;
-        }
-        else {
-            build.object->Release();
-            build = NULL;
-        }
-    }
-    return hr; // Failed
-}
+    // Capture Graph Builder.
+    ThrowIfError(L"Fail to create CaptureGraphBuilder2",
+        CoCreateInstance(CLSID_CaptureGraphBuilder2,
+            NULL,
+            CLSCTX_INPROC_SERVER,
+            IID_ICaptureGraphBuilder2,
+            reinterpret_cast<void**>(&build)));
 
-HRESULT EnumerateDevices(REFGUID category, CComHolder<IEnumMoniker> &enumMoniker)
-{
-    // Create the System Device Enumerator.
-    ICreateDevEnum *pDevEnum;
-    HRESULT hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL,
-        CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pDevEnum));
+    // FilterGraph
+    ThrowIfError(L"Fail to create FilterGraph", 
+        CoCreateInstance(CLSID_FilterGraph, 
+            0, 
+            CLSCTX_INPROC_SERVER, 
+            IID_IGraphBuilder, 
+            (void**)&graph));
 
-    if (SUCCEEDED(hr))
-    {
-        // Create an enumerator for the category.
-        hr = pDevEnum->CreateClassEnumerator(category, &enumMoniker.object, 0);
-        if (hr == S_FALSE)
-        {
-            hr = VFW_E_NOT_FOUND;  // The category is empty. Treat as an error.
-        }
-        pDevEnum->Release();
-    }
-    return hr;
+    ThrowIfError(L"SetFiltergraph", build.object->SetFiltergraph(graph.object));
 }
 
 // TODO: refactor
@@ -93,13 +79,10 @@ std::vector<VideoDevice> getDeviceInformation(const CComHolder<IEnumMoniker> &en
 std::vector<VideoDevice> CVideoCaptureService::obtainAvailableVideoDevices()
 {
     CComHolder<IEnumMoniker> devicesEnum;
-    HRESULT hr = EnumerateDevices(CLSID_VideoInputDeviceCategory, devicesEnum);
-    ThrowIfError(L"Fail to get available video devices", hr);
-    if (SUCCEEDED(hr)) {
-        return getDeviceInformation(devicesEnum);
-    } else {
-        return std::vector<VideoDevice>();
-    }
+    CComHolder<ICreateDevEnum> systemDeviceEnum;
+    ThrowIfError(L"Create SystemDeviceEnum", CoCreateInstance(CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&systemDeviceEnum.object)));
+    ThrowIfError(L"CreateClassEnumerator", systemDeviceEnum.object->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &devicesEnum.object, 0));
+    return getDeviceInformation(devicesEnum);
 }
 
 std::vector<std::wstring> CVideoCaptureService::GetAvailableVideoDevicesInfo()
@@ -110,18 +93,19 @@ std::vector<std::wstring> CVideoCaptureService::GetAvailableVideoDevicesInfo()
     }
     return devicesInfo;
 }
+
 void CVideoCaptureService::SelectVideoDevice(size_t index)
 {
+    // TODO: isInitialised() method
+    assert(graph.object != NULL);
     if (index > availableDevices.size()) {
-        throw std::wstring(L"Device index in out of bounds");
+        throw std::wstring(L"Device index is out of bounds");
     }
+    // TODO: отпустить предыдущий
     selectedDevice = index;
     VideoDevice& device = availableDevices[selectedDevice];
-    HRESULT hr = device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object);
-    if (SUCCEEDED(hr))
-    {
-        hr = graph.object->AddFilter(pCap.object, L"Capture Filter");
-    }
+    ThrowIfError(L"Fail to use video device", device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object));
+    ThrowIfError(L"Fail to add filter to graph", graph.object->AddFilter(pCap.object, L"Capture Filter"));
 }
 
 void CVideoCaptureService::StartPreview()
@@ -129,11 +113,10 @@ void CVideoCaptureService::StartPreview()
     if (pCap.object == NULL) {
         throw std::wstring(L"Video Device is not selected");
     }
-    if (window == NULL) {
+    if (clientWindow == NULL) {
         throw std::wstring(L"No parent window");
     }
     prepareGraph();
-    //setupVideoWindow();
     ThrowIfError(L"Graph Run error", pControl.object->Run());
     long width, height;
 
@@ -155,36 +138,37 @@ void CVideoCaptureService::StartPreview()
 BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
 {
     long size = 0;
-    //ThrowIfError(L"Fail to get Current Image size", basicVideo.object->GetCurrentImage(&size, NULL));
-
-    //ThrowIfError(L"Fail to Pause", pControl.object->Pause());
     BYTE *lpDib = NULL;
-
     ThrowIfError(L"Fail to get Current Image", pWC.object->GetCurrentImage(&lpDib));
-
-    //ThrowIfError(L"Fail to Resume(as Run())", pControl.object->Run());
-
     return (BITMAPINFOHEADER*)lpDib; // TODO: leak  -> CoTaskMemFree(lpDib);
+}
+
+void CVideoCaptureService::prepareRenderer()
+{
+    assert(graph.object != NULL);
+
+    // Создаем VideoMixingRenderer9
+    ThrowIfError(L"Creating VideoMixingRenderer9", CoCreateInstance(CLSID_VideoMixingRenderer9, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pVmr.object));
+
+    // Добавляем его в граф
+    ThrowIfError(L"Add VideoMixingRenderer9", graph.object->AddFilter(pVmr.object, L"VMR9"));
+
+    ThrowIfError(L"IVMRFilterConfig9", pVmr.object->QueryInterface(IID_IVMRFilterConfig9, (void**)&pConfig.object));
+
+    // Убедимся что используется windowless mode и получим WindowlessControl9
+    ThrowIfError(L"SetRenderingMode", pConfig.object->SetRenderingMode(VMR9Mode_Windowless));
+    ThrowIfError(L"IVMRWindowlessControl9", pVmr.object->QueryInterface(IID_IVMRWindowlessControl9, (void**)&pWC.object));
+    ThrowIfError(L"SetVideoClippingWindow", pWC.object->SetVideoClippingWindow(clientWindow));
+    ThrowIfError(L"IVMRMixerControl9", pVmr.object->QueryInterface(IID_IVMRMixerControl9, (void**)&pMix));
 }
 
 void CVideoCaptureService::prepareGraph()
 {
-    ThrowIfError(L"Creating VideoMixingRenderer9", CoCreateInstance(CLSID_VideoMixingRenderer9, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pVmr.object));
-    ThrowIfError(L"Add VideoMixingRenderer9", graph.object->AddFilter(pVmr.object, L"VMR9"));
-    ThrowIfError(L"IVMRFilterConfig9", pVmr.object->QueryInterface(IID_IVMRFilterConfig9, (void**)&pConfig.object));
-    // make sure VMR9 is in windowless mode
-    ThrowIfError(L"SetRenderingMode", pConfig.object->SetRenderingMode(VMR9Mode_Windowless));
-
-    // get a pointer to the IVMRWindowlessControl9 interface
-    ThrowIfError(L"IVMRWindowlessControl9", pVmr.object->QueryInterface(IID_IVMRWindowlessControl9, (void**)&pWC.object));
-
-    // specify the container window that the video should be clipped to    
-    pWC.object->SetVideoClippingWindow(window);
-    // IVMRMixerControl manipulates video streams
-    pVmr.object->QueryInterface(IID_IVMRMixerControl9, (void**)&pMix);
-
-
+    if (pVmr.object == NULL) {
+        prepareRenderer();
+    }
     ThrowIfError(L"Creating Render Graph", build.object->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, pVmr.object));
+
     ThrowIfError(L"IMediaControl", graph.object->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
     ThrowIfError(L"IMediaEvent", graph.object->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
 }
