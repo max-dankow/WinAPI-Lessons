@@ -1,47 +1,36 @@
 ﻿#include "VideoCaptureService.h"
 #include "Utils.h"
 
-CVideoCaptureService::~CVideoCaptureService()
-{
-    if (pBuild != NULL) {
-        pBuild->Release();
-        pBuild = NULL;
-    }
-    if (pGraph != NULL) {
-        pGraph->Release();
-    }
-}
-
 void CVideoCaptureService::Init(HWND window)
 {
     this->window = window;
-    ThrowIfError(L"Fail to initialize Capture Graph Builder", initCaptureGraphBuilder(pGraph, pBuild));
+    ThrowIfError(L"Fail to initialize Capture Graph Builder", initCaptureGraphBuilder(graph, build));
     availableDevices = obtainAvailableVideoDevices();
     SelectVideoDevice(0);
 }
 
 // The caller must release both interfaces.
-HRESULT CVideoCaptureService::initCaptureGraphBuilder(IGraphBuilder *&pGraph, ICaptureGraphBuilder2 *&pBuild)
+HRESULT CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build)
 {
-    if (pGraph != NULL || pBuild != NULL)
+    if (graph.object != NULL || build.object != NULL)
     {
         return E_POINTER;
     }
 
     // Create the Capture Graph Builder.
-    HRESULT hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&pBuild);
+    HRESULT hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&build);
     if (SUCCEEDED(hr))
     {
         // Create the Filter Graph Manager.
-        hr = CoCreateInstance(CLSID_FilterGraph, 0, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&pGraph);
+        hr = CoCreateInstance(CLSID_FilterGraph, 0, CLSCTX_INPROC_SERVER, IID_IGraphBuilder, (void**)&graph);
         if (SUCCEEDED(hr)) {
             // Initialize the Capture Graph Builder.
-            pBuild->SetFiltergraph(pGraph);
+            build.object->SetFiltergraph(graph.object);
             return S_OK;
         }
         else {
-            pBuild->Release();
-            pBuild = NULL;
+            build.object->Release();
+            build = NULL;
         }
     }
     return hr; // Failed
@@ -131,7 +120,7 @@ void CVideoCaptureService::SelectVideoDevice(size_t index)
     HRESULT hr = device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object);
     if (SUCCEEDED(hr))
     {
-        hr = pGraph->AddFilter(pCap.object, L"Capture Filter");
+        hr = graph.object->AddFilter(pCap.object, L"Capture Filter");
     }
 }
 
@@ -178,38 +167,10 @@ BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
     return (BITMAPINFOHEADER*)lpDib; // TODO: leak  -> CoTaskMemFree(lpDib);
 }
 
-// TODO: depricated
-void CVideoCaptureService::resizeVideoWindow()
-{
-    // Resize the video preview window to match owner window size
-    if (videoWindow.object != NULL) {
-        RECT rc;
-        // Make the preview video fill our window
-        GetClientRect(window, &rc);
-        videoWindow.object->SetWindowPosition(0, 0, 400, 300);
-    }
-}
-
-void CVideoCaptureService::setupVideoWindow()
-{
-    // Set the video window to be a child of the main window
-    ThrowIfError(L"Fail to set Video Window owner", videoWindow.object->put_Owner((OAHWND)window));
-
-    // Set video window style
-    ThrowIfError(L"Fail to set Video Window style", videoWindow.object->put_WindowStyle(WS_CHILD | WS_CLIPCHILDREN));
-
-    // Use helper function to position video window in client rect 
-    // of main application window
-    resizeVideoWindow();
-
-    // Make the video window visible, now that it is properly positioned
-    ThrowIfError(L"Fail to set Video Window visable", videoWindow.object->put_Visible(OATRUE));
-}
-
 void CVideoCaptureService::prepareGraph()
 {
     ThrowIfError(L"Creating VideoMixingRenderer9", CoCreateInstance(CLSID_VideoMixingRenderer9, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pVmr.object));
-    ThrowIfError(L"Add VideoMixingRenderer9", pGraph->AddFilter(pVmr.object, L"VMR9"));
+    ThrowIfError(L"Add VideoMixingRenderer9", graph.object->AddFilter(pVmr.object, L"VMR9"));
     ThrowIfError(L"IVMRFilterConfig9", pVmr.object->QueryInterface(IID_IVMRFilterConfig9, (void**)&pConfig.object));
     // make sure VMR9 is in windowless mode
     ThrowIfError(L"SetRenderingMode", pConfig.object->SetRenderingMode(VMR9Mode_Windowless));
@@ -223,10 +184,7 @@ void CVideoCaptureService::prepareGraph()
     pVmr.object->QueryInterface(IID_IVMRMixerControl9, (void**)&pMix);
 
 
-    ThrowIfError(L"Creating Render Graph", pBuild->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, pVmr.object));
-    ThrowIfError(L"IMediaControl", pGraph->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
-    ThrowIfError(L"IMediaEvent", pGraph->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
-    // TODO: depricated
-    //ThrowIfError(L"IVideoWindow", pGraph->QueryInterface(IID_IVideoWindow, (LPVOID *)&videoWindow.object));
-    //ThrowIfError(L"IBasicVideo", pGraph->QueryInterface(IID_IBasicVideo, (LPVOID *)&basicVideo.object));
+    ThrowIfError(L"Creating Render Graph", build.object->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, pVmr.object));
+    ThrowIfError(L"IMediaControl", graph.object->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
+    ThrowIfError(L"IMediaEvent", graph.object->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
 }

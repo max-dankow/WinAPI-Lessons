@@ -20,9 +20,10 @@ public:
         other.object = NULL;
     }
 
-    CComHolder operator=(CComHolder&& other) {
+    CComHolder& operator=(CComHolder&& other) {
         this->object = other.object;
         other.object = NULL;
+        return *this;
     }
 
     // TODO: постоянно исключение с IbaseFilter
@@ -42,9 +43,8 @@ struct VideoDevice {
 class CVideoCaptureService
 {
 public:
-    CVideoCaptureService::CVideoCaptureService() : pGraph(NULL), pBuild(NULL), window(NULL) { }
-    ~CVideoCaptureService();
-   
+    CVideoCaptureService::CVideoCaptureService() : graph(NULL), build(NULL), window(NULL) { }
+
     void Init(HWND window);
     std::vector<std::wstring> GetAvailableVideoDevicesInfo();
     void SelectVideoDevice(size_t index);
@@ -54,25 +54,20 @@ public:
     static const UINT MessageMediaEvent = WM_APP + 1;
 
 private:
-    HRESULT initCaptureGraphBuilder(IGraphBuilder*& pGraph, ICaptureGraphBuilder2*& pBuild);
+    HRESULT CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build);
     std::vector<VideoDevice> obtainAvailableVideoDevices();
     void prepareGraph();
-    void setupVideoWindow();
-    void resizeVideoWindow();
 
-    // TODO: to ComHolder
-    IGraphBuilder* pGraph;
-    ICaptureGraphBuilder2 *pBuild;
+    CComHolder<IGraphBuilder> graph;
+    CComHolder<ICaptureGraphBuilder2> build;
     CComHolder<IMediaControl> pControl;
     CComHolder<IMediaEvent> pEvent;
-    CComHolder<IVideoWindow> videoWindow;
     CComHolder<IBaseFilter> pCap;
     CComHolder<IBaseFilter> pVmr;
     CComHolder<IMediaControl> pMC;
     CComHolder<IVMRMixerControl9> pMix;
     CComHolder<IVMRFilterConfig9> pConfig;
     CComHolder<IVMRWindowlessControl9> pWC;
-    CComHolder<IBasicVideo> basicVideo;
 
     HWND window;
     std::vector<VideoDevice> availableDevices;
