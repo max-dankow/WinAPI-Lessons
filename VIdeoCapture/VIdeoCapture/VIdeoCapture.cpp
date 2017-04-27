@@ -1,13 +1,12 @@
-// VIdeoCapture.cpp: определяет точку входа для приложения.
-//
-#include "VIdeoCapture.h"
-
 #include <windows.h>
+
 #include <Dshow.h>
 #include <objbase.h>
+
 #include <string>
 #include <exception>
 
+#include "Resource.h"
 #include "Utils.h"
 #include "VideoCaptureWindow.h"
 
