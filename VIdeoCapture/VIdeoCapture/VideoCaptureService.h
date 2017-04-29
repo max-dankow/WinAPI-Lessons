@@ -26,10 +26,10 @@ public:
         return *this;
     }
 
-    // TODO: постоянно исключение с IbaseFilter
+    // TODO: постоянно исключение с IbaseFilter?
     ~CComHolder() {
         if (object != NULL) {
-            //object->Release();
+            object->Release();
         }
     }
     T *object;

@@ -2,12 +2,13 @@
 #include <assert.h>
 #include "Utils.h"
 
-// TODO: возможно перенести сюда initGraph
 void CVideoCaptureService::Init(HWND window)
 {
     clientWindow = window;
     try {
         initCaptureGraphBuilder(graph, build);
+        ThrowIfError(L"IMediaControl", graph.object->QueryInterface(IID_IMediaControl, reinterpret_cast<void **>(&pControl.object)));
+        ThrowIfError(L"IMediaEvent", graph.object->QueryInterface(IID_IMediaEvent, reinterpret_cast<void **>(&pEvent.object)));
         availableDevices = obtainAvailableVideoDevices();
         SelectVideoDevice(0);
     }
@@ -36,8 +37,8 @@ void CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &gr
         CoCreateInstance(CLSID_FilterGraph, 
             0, 
             CLSCTX_INPROC_SERVER, 
-            IID_IGraphBuilder, 
-            (void**)&graph));
+            IID_IGraphBuilder,
+            reinterpret_cast<void**>(&graph)));
 
     ThrowIfError(L"SetFiltergraph", build.object->SetFiltergraph(graph.object));
 }
@@ -132,7 +133,6 @@ void CVideoCaptureService::StartPreview()
 
     // set destination rectangle for the video
     pWC.object->SetVideoPosition(NULL, &rcDest);
-    long evCode = 0;
 }
 
 BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
@@ -140,7 +140,7 @@ BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
     long size = 0;
     BYTE *lpDib = NULL;
     ThrowIfError(L"Fail to get Current Image", pWC.object->GetCurrentImage(&lpDib));
-    return (BITMAPINFOHEADER*)lpDib; // TODO: leak  -> CoTaskMemFree(lpDib);
+    return (BITMAPINFOHEADER*)lpDib;
 }
 
 void CVideoCaptureService::prepareRenderer()
@@ -168,7 +168,4 @@ void CVideoCaptureService::prepareGraph()
         prepareRenderer();
     }
     ThrowIfError(L"Creating Render Graph", build.object->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, pVmr.object));
-
-    ThrowIfError(L"IMediaControl", graph.object->QueryInterface(IID_IMediaControl, (void **)&pControl.object));
-    ThrowIfError(L"IMediaEvent", graph.object->QueryInterface(IID_IMediaEvent, (void **)&pEvent.object));
 }

@@ -14,6 +14,11 @@ public:
     void Show(int cmdShow) const;
     void StartPreview();
     void ObtainCurrentImage() {
+        // освободим предыдущую
+        if (pDIBImage != NULL) {
+            CoTaskMemFree(pDIBImage);
+            pDIBImage = NULL;
+        }
         pDIBImage = videoCaptureService.ObtainCurrentImage();
         InvalidateRect(windowHandle, &staticImageRect, FALSE);
         UpdateWindow(windowHandle);

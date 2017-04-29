@@ -94,10 +94,26 @@ void CVideoCaptureWindow::StartPreview()
 void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, BITMAPINFOHEADER *pDIBImage)
 {
     HDC hMemDC;
+    struct pixel {
+        byte bytes[3];
+    };
+    
+    // memset(reinterpret_cast<pixel*>(pDIBImage + 1), red, 30000);
     auto hBitmap = CreateDIBitmap(hDC, pDIBImage, CBM_INIT, reinterpret_cast<byte*>(pDIBImage + 1), reinterpret_cast<BITMAPINFO*>(pDIBImage), DIB_RGB_COLORS);
 
     hMemDC = CreateCompatibleDC(hDC);
     hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+    for (int i = 0; i < pDIBImage->biWidth; i++) {
+        for (int j = 0; j < pDIBImage->biHeight; j++) {
+            COLORREF pixelColor = GetPixel(hMemDC, i, j);
+            if (GetRValue(pixelColor) + GetGValue(pixelColor) + GetBValue(pixelColor) < 0XFF) {
+                SetPixel(hMemDC, i, j, RGB(0, 0, 0));
+            }
+            else {
+                SetPixel(hMemDC, i, j, RGB(0XFF, 0xFF, 0xFF));
+            }
+        }
+    }
     BitBlt(hDC, staticImageRect.left, staticImageRect.top, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
     DeleteObject(SelectObject(hMemDC, hBitmap));
     DeleteDC(hMemDC);
@@ -117,7 +133,7 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
 
         return TRUE;
     case WM_CREATE:
-        SetTimer(windowHandle, 1, 1000, NULL);
+        SetTimer(windowHandle, 1, 500, NULL);
         break;
     case WM_TIMER:
         pThis->ObtainCurrentImage();
