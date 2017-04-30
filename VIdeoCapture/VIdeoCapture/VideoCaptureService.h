@@ -26,12 +26,17 @@ public:
         return *this;
     }
 
-    // TODO: постоянно исключение с IbaseFilter?
+    // TODO: постоянно исключение с IbaseFilte?
     ~CComHolder() {
         if (object != NULL) {
             object->Release();
         }
     }
+
+    bool Exist() {
+        return object != NULL;
+    }
+
     T *object;
 };
 
@@ -66,17 +71,19 @@ private:
     std::vector<VideoDevice> obtainAvailableVideoDevices();
     void prepareGraph();
     void prepareRenderer();
+    bool isInitialized();
+    bool isRendererReady();
+    bool isCaptureDevice();
 
     CComHolder<IGraphBuilder> graph;
     CComHolder<ICaptureGraphBuilder2> build;
-    CComHolder<IMediaControl> pControl;
-    CComHolder<IMediaEvent> pEvent;
-    CComHolder<IBaseFilter> pCap;
-    CComHolder<IBaseFilter> pVmr;
-    CComHolder<IMediaControl> pMC;
-    CComHolder<IVMRMixerControl9> pMix;
-    CComHolder<IVMRFilterConfig9> pConfig;
-    CComHolder<IVMRWindowlessControl9> pWC;
+    CComHolder<IMediaControl> mediaControl;
+    CComHolder<IMediaEvent> mediaEvent;
+    CComHolder<IBaseFilter> captureFilter;
+    CComHolder<IBaseFilter> videoMixingRendered9;
+    CComHolder<IVMRMixerControl9> mixerControl;
+    CComHolder<IVMRFilterConfig9> filterConfig;
+    CComHolder<IVMRWindowlessControl9> windowlessControl;
 
     // Окно использущее сервис
     HWND clientWindow;

@@ -7,8 +7,8 @@ void CVideoCaptureService::Init(HWND window)
     clientWindow = window;
     try {
         initCaptureGraphBuilder(graph, build);
-        ThrowIfError(L"IMediaControl", graph.object->QueryInterface(IID_IMediaControl, reinterpret_cast<void **>(&pControl.object)));
-        ThrowIfError(L"IMediaEvent", graph.object->QueryInterface(IID_IMediaEvent, reinterpret_cast<void **>(&pEvent.object)));
+        ThrowIfError(L"IMediaControl", graph.object->QueryInterface(IID_IMediaControl, reinterpret_cast<void **>(&mediaControl.object)));
+        ThrowIfError(L"IMediaEvent", graph.object->QueryInterface(IID_IMediaEvent, reinterpret_cast<void **>(&mediaEvent.object)));
         availableDevices = obtainAvailableVideoDevices();
         SelectVideoDevice(0);
     }
@@ -105,41 +105,34 @@ void CVideoCaptureService::SelectVideoDevice(size_t index)
     // TODO: отпустить предыдущий
     selectedDevice = index;
     VideoDevice& device = availableDevices[selectedDevice];
-    ThrowIfError(L"Fail to use video device", device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&pCap.object));
-    ThrowIfError(L"Fail to add filter to graph", graph.object->AddFilter(pCap.object, L"Capture Filter"));
+    ThrowIfError(L"Fail to use video device", device.moniker.object->BindToObject(0, 0, IID_IBaseFilter, (void**)&captureFilter.object));
+    ThrowIfError(L"Fail to add filter to graph", graph.object->AddFilter(captureFilter.object, L"Capture Filter"));
 }
 
 void CVideoCaptureService::StartPreview()
 {
-    if (pCap.object == NULL) {
+    if (captureFilter.object == NULL) {
         throw std::wstring(L"Video Device is not selected");
     }
     if (clientWindow == NULL) {
         throw std::wstring(L"No parent window");
     }
     prepareGraph();
-    ThrowIfError(L"Graph Run error", pControl.object->Run());
+    ThrowIfError(L"Graph Run error", mediaControl.object->Run());
     long width, height;
 
-    ThrowIfError(L"GetNativeVideoSize", pWC.object->GetNativeVideoSize(&width, &height, NULL, NULL));
+    ThrowIfError(L"GetNativeVideoSize", windowlessControl.object->GetNativeVideoSize(&width, &height, NULL, NULL));
 
-    // explicitly convert System::Drawing::Rectangle type to RECT type
-    // TODO: this
-    RECT rcDest;
-    rcDest.top = 0;
-    rcDest.bottom = height;
-    rcDest.left = 0;
-    rcDest.right = width;
+    RECT rcDest = { 0, 0, width, height };
 
-    // set destination rectangle for the video
-    pWC.object->SetVideoPosition(NULL, &rcDest);
+    windowlessControl.object->SetVideoPosition(NULL, &rcDest);
 }
 
 BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
 {
     long size = 0;
     BYTE *lpDib = NULL;
-    ThrowIfError(L"Fail to get Current Image", pWC.object->GetCurrentImage(&lpDib));
+    ThrowIfError(L"Fail to get Current Image", windowlessControl.object->GetCurrentImage(&lpDib));
     return (BITMAPINFOHEADER*)lpDib;
 }
 
@@ -148,24 +141,45 @@ void CVideoCaptureService::prepareRenderer()
     assert(graph.object != NULL);
 
     // Создаем VideoMixingRenderer9
-    ThrowIfError(L"Creating VideoMixingRenderer9", CoCreateInstance(CLSID_VideoMixingRenderer9, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&pVmr.object));
+    ThrowIfError(L"Creating VideoMixingRenderer9", CoCreateInstance(CLSID_VideoMixingRenderer9, 0, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&videoMixingRendered9.object));
 
     // Добавляем его в граф
-    ThrowIfError(L"Add VideoMixingRenderer9", graph.object->AddFilter(pVmr.object, L"VMR9"));
+    ThrowIfError(L"Add VideoMixingRenderer9", graph.object->AddFilter(videoMixingRendered9.object, L"VMR9"));
 
-    ThrowIfError(L"IVMRFilterConfig9", pVmr.object->QueryInterface(IID_IVMRFilterConfig9, (void**)&pConfig.object));
+    ThrowIfError(L"IVMRFilterConfig9", videoMixingRendered9.object->QueryInterface(IID_IVMRFilterConfig9, (void**)&filterConfig.object));
 
     // Убедимся что используется windowless mode и получим WindowlessControl9
-    ThrowIfError(L"SetRenderingMode", pConfig.object->SetRenderingMode(VMR9Mode_Windowless));
-    ThrowIfError(L"IVMRWindowlessControl9", pVmr.object->QueryInterface(IID_IVMRWindowlessControl9, (void**)&pWC.object));
-    ThrowIfError(L"SetVideoClippingWindow", pWC.object->SetVideoClippingWindow(clientWindow));
-    ThrowIfError(L"IVMRMixerControl9", pVmr.object->QueryInterface(IID_IVMRMixerControl9, (void**)&pMix));
+    ThrowIfError(L"SetRenderingMode", filterConfig.object->SetRenderingMode(VMR9Mode_Windowless));
+    ThrowIfError(L"IVMRWindowlessControl9", videoMixingRendered9.object->QueryInterface(IID_IVMRWindowlessControl9, (void**)&windowlessControl.object));
+    ThrowIfError(L"SetVideoClippingWindow", windowlessControl.object->SetVideoClippingWindow(clientWindow));
+    ThrowIfError(L"IVMRMixerControl9", videoMixingRendered9.object->QueryInterface(IID_IVMRMixerControl9, (void**)&mixerControl));
+}
+
+bool CVideoCaptureService::isInitialized()
+{
+    return graph.Exist() && build.Exist() 
+        && mediaControl.Exist() && mediaEvent.Exist() 
+        && videoMixingRendered9.Exist() 
+        && captureFilter.Exist() 
+        && mixerControl.Exist() 
+        && filterConfig.Exist() 
+        && windowlessControl.Exist();
+}
+
+bool CVideoCaptureService::isRendererReady()
+{
+    return videoMixingRendered9.Exist();
+}
+
+bool CVideoCaptureService::isCaptureDevice()
+{
+    return captureFilter.Exist();
 }
 
 void CVideoCaptureService::prepareGraph()
 {
-    if (pVmr.object == NULL) {
+    if (videoMixingRendered9.object == NULL) {
         prepareRenderer();
     }
-    ThrowIfError(L"Creating Render Graph", build.object->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, pCap.object, NULL, pVmr.object));
+    ThrowIfError(L"Creating Render Graph", build.object->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, captureFilter.object, NULL, videoMixingRendered9.object));
 }
