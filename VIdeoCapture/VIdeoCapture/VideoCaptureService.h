@@ -120,7 +120,8 @@ public:
     // которое следует использовать.
     void SelectVideoDevice(size_t index);
 
-    void StartPreview();
+    void CVideoCaptureService::StartPreview(RECT previewRect = { 0, 0, 0, 0 });
+
     CBitmap CVideoCaptureService::ObtainCurrentImage();
 
     static const UINT MediaEventMessage = WM_APP + 1;

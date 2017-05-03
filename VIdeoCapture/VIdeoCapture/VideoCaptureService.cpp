@@ -126,7 +126,7 @@ void CVideoCaptureService::SelectVideoDevice(size_t index)
     ThrowIfError(L"Fail to add filter to graph", graph.Object()->AddFilter(captureFilter.Object(), L"Capture Filter"));
 }
 
-void CVideoCaptureService::StartPreview()
+void CVideoCaptureService::StartPreview(RECT previewRect)
 {
     assert(clientWindow != NULL);
     if (!isInitialized()) {
@@ -136,10 +136,9 @@ void CVideoCaptureService::StartPreview()
     ThrowIfError(L"Graph Run error", mediaControl.Object()->Run());
 
     // Устанавливаем оптимальный размер превью
-    long width, height;
-    ThrowIfError(L"GetNativeVideoSize", windowlessControl.Object()->GetNativeVideoSize(&width, &height, NULL, NULL));
-    RECT rcDest = { 0, 0, width, height };
-    windowlessControl.Object()->SetVideoPosition(NULL, &rcDest);
+    //long width, height;
+    //ThrowIfError(L"GetNativeVideoSize", windowlessControl.Object()->GetNativeVideoSize(&width, &height, NULL, NULL));
+    windowlessControl.Object()->SetVideoPosition(NULL, &previewRect);
 }
 
 CBitmap CVideoCaptureService::ObtainCurrentImage()

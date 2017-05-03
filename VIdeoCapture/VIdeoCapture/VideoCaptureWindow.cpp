@@ -84,26 +84,25 @@ void CVideoCaptureWindow::Show(int cmdShow) const
 void CVideoCaptureWindow::StartPreview()
 {
     try {
-        videoCaptureService.StartPreview();
+        videoCaptureService.StartPreview(previewRect);
     }
     catch (std::wstring errorMessage) {
         ShowError(errorMessage);
     }
 }
 
-void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, BITMAPINFOHEADER *pDIBImage)
+void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, RECT imageRect, BITMAPINFOHEADER *pDIBImage)
 {
     HDC hMemDC;
     struct pixel {
         byte bytes[3];
     };
     
-    // memset(reinterpret_cast<pixel*>(pDIBImage + 1), red, 30000);
     auto hBitmap = CreateDIBitmap(hDC, pDIBImage, CBM_INIT, reinterpret_cast<byte*>(pDIBImage + 1), reinterpret_cast<BITMAPINFO*>(pDIBImage), DIB_RGB_COLORS);
 
     hMemDC = CreateCompatibleDC(hDC);
     hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
-    for (int i = 0; i < pDIBImage->biWidth; i++) {
+    /*for (int i = 0; i < pDIBImage->biWidth; i++) {
         for (int j = 0; j < pDIBImage->biHeight; j++) {
             COLORREF pixelColor = GetPixel(hMemDC, i, j);
             if (GetRValue(pixelColor) + GetGValue(pixelColor) + GetBValue(pixelColor) < 0XFF) {
@@ -113,8 +112,8 @@ void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, BITMAPINFOHEADER *pDIBImage)
                 SetPixel(hMemDC, i, j, RGB(0XFF, 0xFF, 0xFF));
             }
         }
-    }
-    BitBlt(hDC, staticImageRect.left, staticImageRect.top, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
+    }*/
+    BitBlt(hDC, imageRect.left, imageRect.top, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
     DeleteObject(SelectObject(hMemDC, hBitmap));
     DeleteDC(hMemDC);
 }
@@ -133,23 +132,26 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
 
         return TRUE;
     case WM_CREATE:
-        SetTimer(windowHandle, 1, 500, NULL);
+        SetTimer(windowHandle, 1, 1000, NULL);
         break;
     case WM_TIMER:
         pThis->ObtainCurrentImage();
         break;
     case WM_ERASEBKGND:
         return 1;
-    case WM_PAINT:
+    case WM_PAINT: {
         //pThis->OnDraw();
+        PAINTSTRUCT paintStruct;
+        CDeviceContext contextHolder(windowHandle, &paintStruct);
+        HDC context = contextHolder.getContext();
         if (!pThis->currentImage.IsNull()) {
-            PAINTSTRUCT paintStruct;
-            CDeviceContext contextHolder(windowHandle, &paintStruct);
-            // TODO: proper HDC handling
-            HDC context = contextHolder.getContext();
-            pThis->dispayDIBitmap(context, pThis->currentImage.GetImage());
+            pThis->dispayDIBitmap(context, pThis->currentImageRect, pThis->currentImage.GetImage());
+        }
+        if (!pThis->previousImage.IsNull()) {
+            pThis->dispayDIBitmap(context, pThis->previousImageRect, pThis->previousImage.GetImage());
         }
         break;
+    }
     case WM_DESTROY:
         //pThis->OnDestroy();
         PostQuitMessage(0);

@@ -102,11 +102,16 @@ HWND InitInstance(HINSTANCE hInstance, int nCmdShow, CVideoCaptureWindow* captur
    {
       return hWnd;
    }
-
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
    return hWnd;
+}
+
+void resize(HWND windowHandle, const CVideoCaptureWindow* videoWindow) {
+    RECT clientRect;
+    GetClientRect(windowHandle, &clientRect);
+    SetWindowPos(videoWindow->GetWindowHandle(), HWND_TOP, clientRect.left, clientRect.top, clientRect.right, clientRect.bottom, 0);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -150,8 +155,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
-    case WM_ERASEBKGND:
-        return 1;
+    case WM_SIZE:
+        resize(hWnd, videoWindow);
+        break;
+    //case WM_ERASEBKGND:
+    //    return 1;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
