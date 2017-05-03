@@ -26,9 +26,8 @@ public:
         return *this;
     }
 
-    // TODO: постоянно исключение с IbaseFilte?
     ~CComHolder() {
-        if (object != NULL) {
+        if (Exist()) {
             object->Release();
         }
     }
@@ -37,6 +36,20 @@ public:
         return object != NULL;
     }
 
+    void Set(T*&& pointer) {
+        if (Exist()) {
+            object->Release();
+            object = NULL;
+        }
+        object = pointer;
+        pointer = NULL;
+    }
+
+    T* Object() {
+        return object;
+    }
+
+private:
     T *object;
 };
 
@@ -48,11 +61,12 @@ struct VideoDevice {
 class CVideoCaptureService
 {
 public:
-    CVideoCaptureService::CVideoCaptureService() : graph(NULL), build(NULL), clientWindow(NULL) { }
+    // TODO: CoInitialize is strange
+    CVideoCaptureService() : graph(NULL), builder(NULL), clientWindow(NULL) {}
 
     // Необходимо вызывать перед началом каких-либо действий с сервисом.
     // HWND window - окно в которое встраивается сервис.
-    // Создает нужные COM объекты, выбирает стандартное устройство видеозахвата.
+    // Создает нужные COM объекты, выбирает первое доступное устройство видеозахвата.
     void Init(HWND window);
 
     std::vector<std::wstring> GetAvailableVideoDevicesInfo();
@@ -62,27 +76,25 @@ public:
     void SelectVideoDevice(size_t index);
 
     void StartPreview();
-    BITMAPINFOHEADER* ObtainCurrentImage();
+    void CVideoCaptureService::ObtainCurrentImage(BITMAPINFOHEADER*& currentImage);
 
     static const UINT MediaEventMessage = WM_APP + 1;
 
 private:
-    void CVideoCaptureService::initCaptureGraphBuilder(CComHolder<IGraphBuilder> &graph, CComHolder<ICaptureGraphBuilder2> &build);
+    void CVideoCaptureService::initCaptureGraphBuilder();
     std::vector<VideoDevice> obtainAvailableVideoDevices();
-    void prepareGraph();
-    void prepareRenderer();
+    void buildGraph();
+    void initRenderer();
     bool isInitialized();
-    bool isRendererReady();
-    bool isCaptureDevice();
 
     CComHolder<IGraphBuilder> graph;
-    CComHolder<ICaptureGraphBuilder2> build;
+    CComHolder<ICaptureGraphBuilder2> builder;
     CComHolder<IMediaControl> mediaControl;
     CComHolder<IMediaEvent> mediaEvent;
     CComHolder<IBaseFilter> captureFilter;
-    CComHolder<IBaseFilter> videoMixingRendered9;
-    CComHolder<IVMRMixerControl9> mixerControl;
-    CComHolder<IVMRFilterConfig9> filterConfig;
+    CComHolder<IBaseFilter> videoMixingRenderer9;
+    //CComHolder<IVMRMixerControl9> mixerControl;
+    //CComHolder<IVMRFilterConfig9> filterConfig;
     CComHolder<IVMRWindowlessControl9> windowlessControl;
 
     // Окно использущее сервис

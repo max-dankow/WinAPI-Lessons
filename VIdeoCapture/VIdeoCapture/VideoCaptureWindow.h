@@ -15,11 +15,11 @@ public:
     void StartPreview();
     void ObtainCurrentImage() {
         // освободим предыдущую
-        if (pDIBImage != NULL) {
-            CoTaskMemFree(pDIBImage);
-            pDIBImage = NULL;
+        if (currentImage != NULL) {
+            CoTaskMemFree(currentImage);
+            currentImage = NULL;
         }
-        pDIBImage = videoCaptureService.ObtainCurrentImage();
+        videoCaptureService.ObtainCurrentImage(currentImage);
         InvalidateRect(windowHandle, &staticImageRect, FALSE);
         UpdateWindow(windowHandle);
     }
@@ -37,7 +37,7 @@ private:
 
     std::wstring title;
     HWND windowHandle;
-    BITMAPINFOHEADER* pDIBImage = NULL;
+    BITMAPINFOHEADER* currentImage = NULL;
     CVideoCaptureService videoCaptureService;
     RECT staticImageRect = { 400, 0, 800, 300 };
 

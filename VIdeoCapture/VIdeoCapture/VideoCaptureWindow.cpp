@@ -142,11 +142,11 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         return 1;
     case WM_PAINT:
         //pThis->OnDraw();
-        if (pThis->pDIBImage != NULL) {
+        if (pThis->currentImage != NULL) {
             PAINTSTRUCT paintStruct;
             CDeviceContext contextHolder(windowHandle, &paintStruct);
             HDC context = contextHolder.getContext();
-            pThis->dispayDIBitmap(context, pThis->pDIBImage);
+            pThis->dispayDIBitmap(context, pThis->currentImage);
         }
         break;
     case WM_DESTROY:
