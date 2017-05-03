@@ -49,7 +49,6 @@ void CVideoCaptureService::initCaptureGraphBuilder()
     ThrowIfError(L"SetFiltergraph", builder.Object()->SetFiltergraph(graph.Object()));
 }
 
-// TODO: static
 std::vector<VideoDevice> getDeviceInformation(CComHolder<IEnumMoniker> &enumMoniker)
 {
     std::vector<VideoDevice> devices;
@@ -143,10 +142,11 @@ void CVideoCaptureService::StartPreview()
     windowlessControl.Object()->SetVideoPosition(NULL, &rcDest);
 }
 
-// TODO: smart_ptr
-void CVideoCaptureService::ObtainCurrentImage(BITMAPINFOHEADER*& currentImage)
+CBitmap CVideoCaptureService::ObtainCurrentImage()
 {
-    ThrowIfError(L"Fail to get Current Image", windowlessControl.Object()->GetCurrentImage(reinterpret_cast<BYTE**>(&currentImage)));
+    BYTE* buffer = NULL;
+    ThrowIfError(L"Fail to get Current Image", windowlessControl.Object()->GetCurrentImage(&buffer));
+    return CBitmap(reinterpret_cast<BITMAPINFOHEADER*>(buffer));
 }
 
 void CVideoCaptureService::initRenderer()

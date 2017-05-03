@@ -142,11 +142,12 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         return 1;
     case WM_PAINT:
         //pThis->OnDraw();
-        if (pThis->currentImage != NULL) {
+        if (!pThis->currentImage.IsNull()) {
             PAINTSTRUCT paintStruct;
             CDeviceContext contextHolder(windowHandle, &paintStruct);
+            // TODO: proper HDC handling
             HDC context = contextHolder.getContext();
-            pThis->dispayDIBitmap(context, pThis->currentImage);
+            pThis->dispayDIBitmap(context, pThis->currentImage.GetImage());
         }
         break;
     case WM_DESTROY:

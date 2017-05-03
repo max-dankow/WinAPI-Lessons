@@ -14,12 +14,9 @@ public:
     void Show(int cmdShow) const;
     void StartPreview();
     void ObtainCurrentImage() {
-        // освободим предыдущую
-        if (currentImage != NULL) {
-            CoTaskMemFree(currentImage);
-            currentImage = NULL;
-        }
-        videoCaptureService.ObtainCurrentImage(currentImage);
+        previousImage.Release();
+        previousImage = std::move(currentImage);
+        currentImage = videoCaptureService.ObtainCurrentImage();
         InvalidateRect(windowHandle, &staticImageRect, FALSE);
         UpdateWindow(windowHandle);
     }
@@ -37,7 +34,7 @@ private:
 
     std::wstring title;
     HWND windowHandle;
-    BITMAPINFOHEADER* currentImage = NULL;
+    CBitmap currentImage, previousImage;
     CVideoCaptureService videoCaptureService;
     RECT staticImageRect = { 400, 0, 800, 300 };
 

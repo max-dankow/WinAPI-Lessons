@@ -5,6 +5,51 @@
 #include <vmr9.h>
 #include <vector>
 
+class CBitmap {
+public:
+    CBitmap() : bitmap(NULL) {}
+
+    CBitmap(const CBitmap&) = delete;
+    CBitmap operator=(const CBitmap&) = delete;
+
+    CBitmap(CBitmap&& other) {
+        this->bitmap = other.bitmap;
+        other.bitmap = NULL;
+    }
+
+    CBitmap& operator=(CBitmap&& other) {
+        this->bitmap = other.bitmap;
+        other.bitmap = NULL;
+        return *this;
+    }
+
+    CBitmap(BITMAPINFOHEADER*&& bitmap) {
+        this->bitmap = bitmap;
+        bitmap = NULL;
+    }
+
+    ~CBitmap() {
+        Release();
+    }
+
+    bool IsNull() const {
+        return bitmap == NULL;
+    }
+
+    BITMAPINFOHEADER* GetImage() const {
+        return bitmap;
+    }
+
+    void Release() {
+        if (bitmap != NULL) {
+            CoTaskMemFree(bitmap);
+            bitmap = NULL;
+        }
+    }
+private:
+    BITMAPINFOHEADER* bitmap;
+};
+
 template <typename T>
 class CComHolder {
 public:
@@ -76,7 +121,7 @@ public:
     void SelectVideoDevice(size_t index);
 
     void StartPreview();
-    void CVideoCaptureService::ObtainCurrentImage(BITMAPINFOHEADER*& currentImage);
+    CBitmap CVideoCaptureService::ObtainCurrentImage();
 
     static const UINT MediaEventMessage = WM_APP + 1;
 
