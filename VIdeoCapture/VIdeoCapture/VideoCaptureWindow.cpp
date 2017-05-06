@@ -84,7 +84,7 @@ void CVideoCaptureWindow::dispayImage(HDC hDC, RECT imageRect, CBitmap& image)
 void CVideoCaptureWindow::detectMotion()
 {
     if (!previousImage.IsNull() && !currentImage.IsNull()) {
-        //CMotionDetector::Detect(getBitmap(GetDevpreviousImage));
+        CMotionDetector::Detect(previousImage, currentImage);
     }
 }
 
@@ -106,6 +106,10 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         break;
     case WM_TIMER:
         pThis->ObtainCurrentImage();
+        pThis->detectMotion();
+        InvalidateRect(windowHandle, &pThis->previousImageRect, FALSE);
+        InvalidateRect(windowHandle, &pThis->currentImageRect, FALSE);
+        UpdateWindow(windowHandle);
         break;
     case WM_ERASEBKGND:
         return 1;

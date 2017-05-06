@@ -3,6 +3,30 @@
 #include <assert.h>
 #include "Utils.h"
 
+class CPixel {
+public:
+    CPixel(BYTE r, BYTE g, BYTE b) : r(r), g(g), b(b) {}
+
+    COLORREF GetColorRef() const {
+        return RGB(r, g, b);
+    }
+    BYTE GetR() const {
+        return r;
+    }
+    BYTE GetG() const {
+        return g;
+    }
+    BYTE GetB() const {
+        return b;
+    }
+    double GetGrey() const {
+        return 0.299 * static_cast<double>(r) + 0.587 * static_cast<double>(g) + 0.114 * static_cast<double>(b);
+    }
+
+private:
+    BYTE r, g, b;
+};
+
 class CBitmap {
 public:
     CBitmap() : bitmap(NULL), memoryContext(NULL) {}
@@ -69,6 +93,17 @@ public:
 
     int GetWidth() const {
         return width;
+    }
+
+    CPixel GetPixelAt(int x, int y) const {
+        assert(x >= 0 && x < width && y >= 0 && y < height);
+        auto color = GetPixel(memoryContext, x, y);
+        return { GetRValue(color), GetGValue(color), GetBValue(color) };
+    }
+
+    void SetPixelAt(int x, int y, CPixel newColor) {
+        assert(x >= 0 && x < width && y >= 0 && y < height);
+        SetPixel(memoryContext, x, y, newColor.GetColorRef());
     }
 private:
     void invalidate() {

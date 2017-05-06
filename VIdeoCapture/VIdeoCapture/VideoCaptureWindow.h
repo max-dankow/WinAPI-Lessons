@@ -17,9 +17,6 @@ public:
         previousImage.Release();
         previousImage = std::move(currentImage);
         currentImage = CBitmap(GetDC(windowHandle), videoCaptureService.ObtainCurrentImage());
-        InvalidateRect(windowHandle, &previousImageRect, FALSE);
-        InvalidateRect(windowHandle, &currentImageRect, FALSE);
-        UpdateWindow(windowHandle);
     }
 
     HWND GetWindowHandle() const {
