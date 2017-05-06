@@ -16,7 +16,7 @@ public:
     void ObtainCurrentImage() {
         previousImage.Release();
         previousImage = std::move(currentImage);
-        currentImage = videoCaptureService.ObtainCurrentImage();
+        currentImage = CBitmap(GetDC(windowHandle), videoCaptureService.ObtainCurrentImage());
         InvalidateRect(windowHandle, &previousImageRect, FALSE);
         InvalidateRect(windowHandle, &currentImageRect, FALSE);
         UpdateWindow(windowHandle);
@@ -42,7 +42,8 @@ private:
     RECT currentImageRect = { 800, 0, 1200, 300 };
     
 
-    void dispayDIBitmap(HDC hDc, RECT imageRect, BITMAPINFOHEADER *pDIBImage);
+    void dispayImage(HDC hDc, RECT imageRect, CBitmap& image);
+    void detectMotion();
 
     static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
 };

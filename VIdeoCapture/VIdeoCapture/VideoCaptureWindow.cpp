@@ -1,29 +1,6 @@
 ﻿#include "VideoCaptureWindow.h"
 #include "Utils.h"
-
-class CDeviceContext
-{
-public:
-    CDeviceContext(HWND hWnd, LPPAINTSTRUCT paintStruct) : window(hWnd), paintStruct(paintStruct) {
-        context = BeginPaint(hWnd, paintStruct);
-    }
-
-    CDeviceContext(const CDeviceContext&) = delete;
-    CDeviceContext operator=(const CDeviceContext&) = delete;
-
-    ~CDeviceContext() {
-        EndPaint(window, paintStruct);
-    }
-
-    HDC getContext() const {
-        return context;
-    }
-
-private:
-    HDC context;
-    HWND window;
-    LPPAINTSTRUCT paintStruct;
-};
+#include "MotionDetector.h"
 
 void CVideoCaptureWindow::RegisterClass()
 {
@@ -91,31 +68,24 @@ void CVideoCaptureWindow::StartPreview()
     }
 }
 
-void CVideoCaptureWindow::dispayDIBitmap(HDC hDC, RECT imageRect, BITMAPINFOHEADER *pDIBImage)
+void CVideoCaptureWindow::dispayImage(HDC hDC, RECT imageRect, CBitmap& image)
 {
-    HDC hMemDC;
-    struct pixel {
-        byte bytes[3];
-    };
     
-    auto hBitmap = CreateDIBitmap(hDC, pDIBImage, CBM_INIT, reinterpret_cast<byte*>(pDIBImage + 1), reinterpret_cast<BITMAPINFO*>(pDIBImage), DIB_RGB_COLORS);
+    //auto hBitmap = image.GetBitmap(hDC);
 
-    hMemDC = CreateCompatibleDC(hDC);
-    hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
-    /*for (int i = 0; i < pDIBImage->biWidth; i++) {
-        for (int j = 0; j < pDIBImage->biHeight; j++) {
-            COLORREF pixelColor = GetPixel(hMemDC, i, j);
-            if (GetRValue(pixelColor) + GetGValue(pixelColor) + GetBValue(pixelColor) < 0XFF) {
-                SetPixel(hMemDC, i, j, RGB(0, 0, 0));
-            }
-            else {
-                SetPixel(hMemDC, i, j, RGB(0XFF, 0xFF, 0xFF));
-            }
-        }
-    }*/
-    BitBlt(hDC, imageRect.left, imageRect.top, pDIBImage->biWidth, pDIBImage->biHeight, hMemDC, 0, 0, SRCCOPY);
-    DeleteObject(SelectObject(hMemDC, hBitmap));
-    DeleteDC(hMemDC);
+    // TODO: remove - Закомментированные действия перенесены в CBitmap
+    //HDC hMemDC = CreateCompatibleDC(hDC);
+    //hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
+    //BitBlt(hDC, imageRect.left, imageRect.top, image.GetWidth(), image.GetHeight(), hMemDC, 0, 0, SRCCOPY);
+    //DeleteObject(SelectObject(hMemDC, hBitmap));
+    //DeleteDC(hMemDC);
+}
+
+void CVideoCaptureWindow::detectMotion()
+{
+    if (!previousImage.IsNull() && !currentImage.IsNull()) {
+        //CMotionDetector::Detect(getBitmap(GetDevpreviousImage));
+    }
 }
 
 LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
@@ -132,7 +102,7 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
 
         return TRUE;
     case WM_CREATE:
-        SetTimer(windowHandle, 1, 1000, NULL);
+        SetTimer(windowHandle, 1, 500, NULL);
         break;
     case WM_TIMER:
         pThis->ObtainCurrentImage();
@@ -145,10 +115,13 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         CDeviceContext contextHolder(windowHandle, &paintStruct);
         HDC context = contextHolder.getContext();
         if (!pThis->currentImage.IsNull()) {
-            pThis->dispayDIBitmap(context, pThis->currentImageRect, pThis->currentImage.GetImage());
+            pThis->currentImage.Show(context, pThis->currentImageRect);
+            //pThis->dispayImage(context, pThis->currentImageRect, pThis->currentImage.GetImage());
         }
         if (!pThis->previousImage.IsNull()) {
-            pThis->dispayDIBitmap(context, pThis->previousImageRect, pThis->previousImage.GetImage());
+            pThis->previousImage.Show(context, pThis->previousImageRect);
+
+            //pThis->dispayImage(context, pThis->previousImageRect, pThis->previousImage.GetImage());
         }
         break;
     }

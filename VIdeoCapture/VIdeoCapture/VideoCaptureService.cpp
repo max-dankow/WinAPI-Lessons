@@ -141,11 +141,11 @@ void CVideoCaptureService::StartPreview(RECT previewRect)
     windowlessControl.Object()->SetVideoPosition(NULL, &previewRect);
 }
 
-CBitmap CVideoCaptureService::ObtainCurrentImage()
+BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage()
 {
     BYTE* buffer = NULL;
     ThrowIfError(L"Fail to get Current Image", windowlessControl.Object()->GetCurrentImage(&buffer));
-    return CBitmap(reinterpret_cast<BITMAPINFOHEADER*>(buffer));
+    return reinterpret_cast<BITMAPINFOHEADER*>(buffer);
 }
 
 void CVideoCaptureService::initRenderer()
