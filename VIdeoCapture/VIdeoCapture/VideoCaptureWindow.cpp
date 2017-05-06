@@ -62,10 +62,20 @@ void CVideoCaptureWindow::StartPreview()
 {
     try {
         videoCaptureService.StartPreview(previewRect);
+        _beginthreadex(NULL, 0, &CVideoCaptureWindow::threadProc, this, 0, NULL);
     }
     catch (std::wstring errorMessage) {
         ShowError(errorMessage);
     }
+}
+
+void CVideoCaptureWindow::OnTimer()
+{
+    ObtainCurrentImage();
+    detectMotion();
+    InvalidateRect(windowHandle, &previousImageRect, FALSE);
+    InvalidateRect(windowHandle, &currentImageRect, FALSE);
+    UpdateWindow(windowHandle);
 }
 
 void CVideoCaptureWindow::dispayImage(HDC hDC, RECT imageRect, CBitmap& image)
@@ -87,6 +97,12 @@ void CVideoCaptureWindow::detectMotion()
         CMotionDetector::Detect(previousImage, currentImage);
     }
 }
+//
+//unsigned CVideoCaptureWindow::threadProc(void * pArguments)
+//{
+//    ShowError(L"Hello from other tread");
+//    return 0;
+//}
 
 LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -102,14 +118,6 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
 
         return TRUE;
     case WM_CREATE:
-        SetTimer(windowHandle, 1, 500, NULL);
-        break;
-    case WM_TIMER:
-        pThis->ObtainCurrentImage();
-        pThis->detectMotion();
-        InvalidateRect(windowHandle, &pThis->previousImageRect, FALSE);
-        InvalidateRect(windowHandle, &pThis->currentImageRect, FALSE);
-        UpdateWindow(windowHandle);
         break;
     case WM_ERASEBKGND:
         return 1;

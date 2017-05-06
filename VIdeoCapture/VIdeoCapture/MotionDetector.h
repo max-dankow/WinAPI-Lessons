@@ -15,7 +15,11 @@ public:
             for (int j = 0; j < current.GetHeight(); j++) {
                 auto newPixel = current.GetPixelAt(i, j);
                 auto oldPixel = previous.GetPixelAt(i, j);
-                if (std::abs(newPixel.GetGrey() - oldPixel.GetGrey()) > 32) {
+                auto dr = std::abs(newPixel.GetR() - oldPixel.GetR());
+                auto dg = std::abs(newPixel.GetG() - oldPixel.GetG());
+                auto db = std::abs(newPixel.GetB() - oldPixel.GetB());
+
+                if (((dr + dg + db) / 3) > 32) {
                     previous.SetPixelAt(i, j, { 255, 255, 255 });
                 } else {
                     previous.SetPixelAt(i, j, { 0, 0, 0 });
