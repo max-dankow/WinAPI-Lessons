@@ -1,4 +1,5 @@
 #include "TextEditorWindow.h"
+#include <commctrl.h>
 #include <memory>
 #include <assert.h>
 #include "Utils.h"
@@ -28,7 +29,7 @@ void CTextEditorWindow::Create()
     windowHandle = CreateWindow(
         ClassName,  // name of window class
         title.c_str(),  // title-bar string
-        WS_OVERLAPPEDWINDOW,  // top-level window
+        WS_OVERLAPPEDWINDOW | WS_EX_LAYERED,  // top-level window
         CW_USEDEFAULT,  // default horizontal position
         CW_USEDEFAULT,  // default vertical position
         CW_USEDEFAULT,  // default width
@@ -91,6 +92,9 @@ LRESULT CTextEditorWindow::windowProc(HWND windowHandle, UINT message, WPARAM wP
             {
             case TextEditControlId:
                 pThis->onMessageFromEdit(HIWORD(wParam));
+                break;
+            case ID_VIEW_SETTINGS:
+                pThis->onOpenSettings();
                 break;
             case IDM_EXIT:
                 DestroyWindow(windowHandle);
@@ -165,6 +169,15 @@ void CTextEditorWindow::save()
     }
 }
 
+void CTextEditorWindow::setOpacity(int opacity)
+{
+    assert(opacity >= 0 && opacity <= 100);
+    SetWindowLong(windowHandle, GWL_EXSTYLE, GetWindowLong(windowHandle, GWL_EXSTYLE) | WS_EX_LAYERED);
+    SetLayeredWindowAttributes(windowHandle, 0, (255 * opacity) / 100, LWA_ALPHA);
+    RedrawWindow(windowHandle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+    return;
+}
+
 
 void CTextEditorWindow::onClose()
 {
@@ -199,4 +212,88 @@ void CTextEditorWindow::onMessageFromEdit(int message)
             onTextChanged();
             break;
     }
+}
+
+void CTextEditorWindow::onOpenSettings()
+{
+    if (DialogBoxParam(GetModuleHandle(NULL),
+        MAKEINTRESOURCE(IDD_SETTINGS),
+        windowHandle,
+        (DLGPROC)SettingsProc, 
+        reinterpret_cast<LPARAM>(this)) == IDOK)
+    {
+        //RedrawWindow(windowHandle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+        // Complete the command; szItemName contains the 
+        // name of the item to delete. 
+    }
+
+    else
+    {
+        // Cancel the command. 
+    }
+}
+
+BOOL CTextEditorWindow::SettingsProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    CTextEditorWindow* pThis = reinterpret_cast<CTextEditorWindow*>(GetWindowLongPtr(windowHandle, GWLP_USERDATA));
+    switch (message)
+    {
+    case WM_INITDIALOG: {
+        pThis = reinterpret_cast<CTextEditorWindow*>(lParam);
+        SetWindowLongPtr(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+        pThis->onSettingsWindowCreated(windowHandle);
+        return TRUE;
+    }
+    case WM_HSCROLL:
+        pThis->onScroll(windowHandle, reinterpret_cast<HWND>(lParam));
+        break;
+    case WM_COMMAND:
+        switch (LOWORD(wParam))
+        {
+        case IDC_CHECK_PREVIEW:
+        {
+            switch (HIWORD(wParam))
+            {
+            case BN_CLICKED:
+                pThis->previewSettings = SendDlgItemMessage(windowHandle, IDC_CHECK_PREVIEW, BM_GETCHECK, 0, 0);
+                break;
+            }
+            break;
+        }
+        case IDOK:
+            pThis->applySettings(windowHandle);
+        case IDCANCEL:
+            EndDialog(windowHandle, wParam);
+            return TRUE;
+        }
+    }
+    return 0;
+}
+
+void CTextEditorWindow::onSettingsWindowCreated(HWND settingsWindow)
+{
+    // Слайдер прозрачности
+    SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETRANGEMIN, FALSE, 0);
+    SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETRANGEMAX, FALSE, 100);
+    SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETPOS, TRUE, opacity);
+    // Checkbox предпросмотр
+    previewSettings = false;
+    SendDlgItemMessage(settingsWindow, IDC_CHECK_PREVIEW, BM_GETCHECK, BST_UNCHECKED, 0);
+}
+
+void CTextEditorWindow::onScroll(HWND settingsWindow, HWND scrolledItem)
+{
+    if (scrolledItem == GetDlgItem(settingsWindow, IDC_SLIDER_OPACITY)) {
+        if (previewSettings) {
+            opacity = SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_GETPOS, 0, 0);
+            setOpacity(opacity);
+        }
+    }
+}
+
+void CTextEditorWindow::applySettings(HWND settingsWindow)
+{
+    // Прозрачность
+    opacity = SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_GETPOS, 0, 0);
+    setOpacity(opacity);
 }
