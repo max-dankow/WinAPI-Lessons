@@ -6,6 +6,7 @@
 #define IDD_TEXTEDITOR_DIALOG           102
 #define IDS_APP_TITLE                   103
 #define IDM_ABOUT                       104
+#define IDS_ON_QUIT_MESSAGE             104
 #define IDM_EXIT                        105
 #define IDC_TEXTEDITOR                  109
 #define IDR_MAINFRAME                   128

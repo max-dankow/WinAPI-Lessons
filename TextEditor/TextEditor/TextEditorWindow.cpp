@@ -1,4 +1,5 @@
 #include "TextEditorWindow.h"
+#include <assert.h>
 
 void CTextEditorWindow::RegisterClass()
 {
@@ -38,6 +39,30 @@ void CTextEditorWindow::Create()
     if (windowHandle == NULL) {
         throw std::runtime_error("Fail to CreateWindow " + std::to_string(GetLastError()));
     }
+
+    createEditControl();
+}
+
+void CTextEditorWindow::createEditControl()
+{
+    assert(windowHandle != NULL);
+    editControl = CreateWindowEx(
+        0, L"EDIT",   // predefined class 
+        NULL,         // no window title 
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL,
+        0, 0, 0, 0,   // set size in WM_SIZE message 
+        windowHandle,         // parent window 
+        NULL,   // edit control ID 
+        (HINSTANCE)GetWindowLong(windowHandle, GWL_HINSTANCE),
+        NULL);
+
+    if (editControl == NULL) {
+        throw std::runtime_error("Fail to Create Edit " + std::to_string(GetLastError()));
+    }
+
+    // Add text to the window. 
+    TCHAR lpszLatin[] = L"Lorem ipsum dolor sit amet, consectetur ";
+    SendMessage(editControl, WM_SETTEXT, 0, (LPARAM)lpszLatin);
 }
 
 void CTextEditorWindow::Show(int cmdShow) const
@@ -70,11 +95,38 @@ LRESULT CTextEditorWindow::windowProc(HWND windowHandle, UINT message, WPARAM wP
             }
         }
         break;
+        case WM_SIZE:
+            pThis->onResize(LOWORD(lParam), HIWORD(lParam));
+            break;
+        case WM_CLOSE:
+            pThis->onClose();
+            break;
         case WM_DESTROY:
-            PostQuitMessage(0);
+            pThis->onDestroy();
             break;
         default:
             return DefWindowProc(windowHandle, message, wParam, lParam);
     }
     return 0;
+}
+
+void CTextEditorWindow::onResize(int width, int height)
+{
+    // Растягиваем EDIT на все окно
+    MoveWindow(editControl, 0, 0, width, height, TRUE);
+}
+
+#include "Utils.h"
+
+void CTextEditorWindow::onClose()
+{
+    int result = MessageBox(windowHandle, TEXT("Are you sure you want to exit?"), TEXT("Confirm"), MB_OKCANCEL);
+    if (result == IDOK) {
+        onDestroy();
+    }
+}
+
+void CTextEditorWindow::onDestroy()
+{
+    PostQuitMessage(0);
 }
