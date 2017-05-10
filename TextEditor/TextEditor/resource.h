@@ -6,10 +6,17 @@
 #define IDD_TEXTEDITOR_DIALOG           102
 #define IDS_APP_TITLE                   103
 #define IDM_ABOUT                       104
-#define ID_VIEW_SETTINGS                32771
 #define IDM_EXIT                        105
 #define IDC_TEXTEDITOR                  109
 #define IDR_MAINFRAME                   128
+#define IDD_SETTINGS                    129
+#define IDC_BUTTON_BACKGROUND_COLOR     1000
+#define IDC_BUTTON_COLOR_FONT           1001
+#define IDC_SLIDER_FONT_SIZE            1002
+#define IDC_SLIDER_OPACITY              1003
+#define IDC_CHECK1                      1004
+#define IDC_CHECK_PREVIEW               1004
+#define ID_VIEW_SETTINGS                32771
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
