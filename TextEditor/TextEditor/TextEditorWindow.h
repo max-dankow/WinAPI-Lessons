@@ -26,6 +26,10 @@ private:
 
     static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
     void createEditControl();
+    std::wstring getEditText();
+    void writeToFile(const std::wstring& content, const std::wstring& path);
+    void save();
+
     void onResize(int width, int height);
     void onClose();
     void onDestroy();

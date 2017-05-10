@@ -1,5 +1,7 @@
 #include "TextEditorWindow.h"
+#include <memory>
 #include <assert.h>
+#include "Utils.h"
 
 void CTextEditorWindow::RegisterClass()
 {
@@ -119,13 +121,60 @@ void CTextEditorWindow::onResize(int width, int height)
     MoveWindow(editControl, 0, 0, width, height, TRUE);
 }
 
-#include "Utils.h"
+
+std::wstring CTextEditorWindow::getEditText()
+{
+    auto textLength = GetWindowTextLength(editControl);
+    std::unique_ptr<wchar_t[]> buffer(new wchar_t[textLength + 1]);
+    GetWindowTextW(editControl, buffer.get(), textLength + 1);
+    return std::wstring(buffer.get());
+}
+
+void CTextEditorWindow::writeToFile(const std::wstring& content, const std::wstring& path)
+{
+    CHandle fileHandle(CreateFile(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL));
+
+    if (fileHandle.Get() == INVALID_HANDLE_VALUE) {
+        throw std::invalid_argument("Failed to save file");
+    }
+    size_t bufferSize = content.length() * sizeof(wchar_t);
+    if (WriteFile(fileHandle.Get(), content.c_str(), bufferSize, NULL, NULL) == 0) {
+        throw std::invalid_argument("Failed to save file");
+    }
+}
+
+void CTextEditorWindow::save()
+{
+    std::unique_ptr<wchar_t[]> path(new wchar_t[MAX_PATH + 1]);
+    path.get()[0] = L'\0';
+
+    OPENFILENAME ofs;
+    memset(&(ofs), 0, sizeof(ofs));
+    ofs.lStructSize = sizeof(ofs);
+    ofs.hwndOwner = windowHandle;
+    ofs.lpstrFile = path.get();
+    ofs.nMaxFile = MAX_PATH;
+    ofs.lpstrFilter = TEXT("Text (*.txt)\0*.txt\0");
+    ofs.lpstrTitle = TEXT("Save File As");
+    ofs.Flags = OFN_HIDEREADONLY;
+    ofs.lpstrDefExt = TEXT("txt");
+
+    if (GetSaveFileName(&ofs))
+    {
+        writeToFile(getEditText(), std::wstring(ofs.lpstrFile));
+    }
+}
+
 
 void CTextEditorWindow::onClose()
 {
     if (isChanged) {
-        int result = MessageBox(windowHandle, TEXT("Are you sure you want to exit?"), TEXT("Confirm"), MB_OKCANCEL);
-        if (result != IDOK) {
+        int result = MessageBox(windowHandle, TEXT("Do you want to save changes?"), TEXT("Save changes"), MB_YESNOCANCEL | MB_ICONWARNING);
+        if (result == IDYES || result == IDNO) {
+            if (result == IDYES) {
+                save();
+            }
+        } else {
             return;
         }
     }
