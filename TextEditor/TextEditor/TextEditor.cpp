@@ -21,7 +21,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_TEXTEDITOR, szWindowClass, MAX_LOADSTRING);
 
-    CTextEditorWindow textEditorWindow;
+    CTextEditorWindow textEditorWindow(L"Text Editor");
     try {
         CTextEditorWindow::RegisterClass();
         textEditorWindow.Create();

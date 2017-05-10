@@ -26,7 +26,7 @@ void CTextEditorWindow::Create()
     windowHandle = CreateWindow(
         ClassName,  // name of window class
         title.c_str(),  // title-bar string
-        WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,  // top-level window
+        WS_OVERLAPPEDWINDOW,  // top-level window
         CW_USEDEFAULT,  // default horizontal position
         CW_USEDEFAULT,  // default vertical position
         CW_USEDEFAULT,  // default width
@@ -39,6 +39,7 @@ void CTextEditorWindow::Create()
     if (windowHandle == NULL) {
         throw std::runtime_error("Fail to CreateWindow " + std::to_string(GetLastError()));
     }
+    SetWindowText(windowHandle, title.c_str());
 
     createEditControl();
 }
@@ -52,7 +53,7 @@ void CTextEditorWindow::createEditControl()
         WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL,
         0, 0, 0, 0,   // set size in WM_SIZE message 
         windowHandle,         // parent window 
-        NULL,   // edit control ID 
+        (HMENU) TextEditControlId,   // edit control ID 
         (HINSTANCE)GetWindowLong(windowHandle, GWL_HINSTANCE),
         NULL);
 
@@ -84,9 +85,11 @@ LRESULT CTextEditorWindow::windowProc(HWND windowHandle, UINT message, WPARAM wP
         case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
-            // Разобрать выбор в меню:
             switch (wmId)
             {
+            case TextEditControlId:
+                pThis->onMessageFromEdit(HIWORD(wParam));
+                break;
             case IDM_EXIT:
                 DestroyWindow(windowHandle);
                 break;
@@ -120,13 +123,31 @@ void CTextEditorWindow::onResize(int width, int height)
 
 void CTextEditorWindow::onClose()
 {
-    int result = MessageBox(windowHandle, TEXT("Are you sure you want to exit?"), TEXT("Confirm"), MB_OKCANCEL);
-    if (result == IDOK) {
-        onDestroy();
+    if (isChanged) {
+        int result = MessageBox(windowHandle, TEXT("Are you sure you want to exit?"), TEXT("Confirm"), MB_OKCANCEL);
+        if (result != IDOK) {
+            return;
+        }
     }
+    onDestroy();
 }
 
 void CTextEditorWindow::onDestroy()
 {
     PostQuitMessage(0);
+}
+
+void CTextEditorWindow::onTextChanged()
+{
+    isChanged = true;
+    SetWindowText(windowHandle, (title + L"*").c_str());
+}
+
+void CTextEditorWindow::onMessageFromEdit(int message)
+{
+    switch(message) {
+        case EN_CHANGE:
+            onTextChanged();
+            break;
+    }
 }
