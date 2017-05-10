@@ -16,6 +16,7 @@ public:
     }
 
     CHandle& operator= (CHandle&& other) {
+        Close();
         this->handle = other.handle;
         other.invalidate();
         return *this;

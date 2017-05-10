@@ -107,6 +107,12 @@ LRESULT CTextEditorWindow::windowProc(HWND windowHandle, UINT message, WPARAM wP
         case WM_SIZE:
             pThis->onResize(LOWORD(lParam), HIWORD(lParam));
             break;
+        case WM_CTLCOLOREDIT: {
+            HDC hdcStatic = (HDC)wParam;
+            SetTextColor(hdcStatic, pThis->fontColor);
+            SetBkColor(hdcStatic, pThis->backgroundColor);
+            break;
+        }
         case WM_CLOSE:
             pThis->onClose();
             break;
@@ -174,10 +180,9 @@ void CTextEditorWindow::setOpacity(int opacity)
     assert(opacity >= 0 && opacity <= 100);
     SetWindowLong(windowHandle, GWL_EXSTYLE, GetWindowLong(windowHandle, GWL_EXSTYLE) | WS_EX_LAYERED);
     SetLayeredWindowAttributes(windowHandle, 0, (255 * opacity) / 100, LWA_ALPHA);
-    RedrawWindow(windowHandle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+    redraw();
     return;
 }
-
 
 void CTextEditorWindow::onClose()
 {
@@ -250,24 +255,43 @@ BOOL CTextEditorWindow::SettingsProc(HWND windowHandle, UINT message, WPARAM wPa
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
-        case IDC_CHECK_PREVIEW:
-        {
-            switch (HIWORD(wParam))
+            case IDC_CHECK_PREVIEW:
             {
-            case BN_CLICKED:
-                pThis->previewSettings = SendDlgItemMessage(windowHandle, IDC_CHECK_PREVIEW, BM_GETCHECK, 0, 0);
+                switch (HIWORD(wParam))
+                {
+                case BN_CLICKED:
+                    pThis->previewSettings = SendDlgItemMessage(windowHandle, IDC_CHECK_PREVIEW, BM_GETCHECK, 0, 0);
+                    break;
+                }
                 break;
             }
-            break;
-        }
-        case IDOK:
-            pThis->applySettings(windowHandle);
-        case IDCANCEL:
-            EndDialog(windowHandle, wParam);
-            return TRUE;
-        }
+            case IDC_BUTTON_COLOR_FONT:
+                switch (HIWORD(wParam)) {
+                case BN_CLICKED:
+                    pThis->fontColor = pThis->chooseColor(pThis->fontColor, windowHandle);
+                    break;
+                }
+                break;
+            case IDC_BUTTON_BACKGROUND_COLOR:
+                switch (HIWORD(wParam)) {
+                case BN_CLICKED:
+                    pThis->backgroundColor = pThis->chooseColor(pThis->backgroundColor, windowHandle);
+                    break;
+                }
+                break;
+            case IDOK:
+                pThis->applySettings(windowHandle);
+            case IDCANCEL:
+                EndDialog(windowHandle, wParam);
+                return TRUE;
+            }
     }
     return 0;
+}
+
+void CTextEditorWindow::redraw() const
+{
+    RedrawWindow(windowHandle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
 }
 
 void CTextEditorWindow::onSettingsWindowCreated(HWND settingsWindow)
@@ -296,4 +320,20 @@ void CTextEditorWindow::applySettings(HWND settingsWindow)
     // Прозрачность
     opacity = SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_GETPOS, 0, 0);
     setOpacity(opacity);
+}
+
+COLORREF CTextEditorWindow::chooseColor(COLORREF initialColor, HWND settingsWindow)
+{
+    CHOOSECOLORW ccw;
+    COLORREF ccref[16];
+    memset(&(ccw), 0, sizeof(ccw));
+    ccw.lStructSize = sizeof(ccw);
+    ccw.hwndOwner = settingsWindow;
+    ccw.rgbResult = initialColor;
+    ccw.lpCustColors = ccref;
+    ccw.Flags = CC_RGBINIT;
+    if (ChooseColor(&ccw) != 0) {
+        return ccw.rgbResult;
+    }
+    return initialColor;
 }
