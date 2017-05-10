@@ -184,6 +184,23 @@ void CTextEditorWindow::setOpacity(int opacity)
     return;
 }
 
+void CTextEditorWindow::setFontSize(int fontSize)
+{
+    // TODO: управление ресурсами
+    HFONT hFont = reinterpret_cast<HFONT>(SendMessage(editControl, WM_GETFONT, 0, 0));
+    if (hFont == NULL) {
+        hFont = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, 
+            CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, TEXT("Courier New"));
+    }
+    LOGFONT logFont;
+    if (GetObject(hFont, sizeof(LOGFONT), &logFont) == 0) {
+        throw std::runtime_error("Failed to get font" + std::to_string(GetLastError()));
+    }
+    logFont.lfHeight = fontSize;
+    HFONT newFont = CreateFontIndirect(&logFont);
+    SendMessage(editControl, WM_SETFONT, (WPARAM)newFont, MAKELPARAM(TRUE, 0));
+}
+
 void CTextEditorWindow::onClose()
 {
     if (isChanged) {
@@ -300,6 +317,10 @@ void CTextEditorWindow::onSettingsWindowCreated(HWND settingsWindow)
     SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETRANGEMIN, FALSE, 0);
     SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETRANGEMAX, FALSE, 100);
     SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETPOS, TRUE, opacity);
+    // Слайдер размера шрифта
+    SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_SETRANGEMIN, FALSE, 8);
+    SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_SETRANGEMAX, FALSE, 72);
+    SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_SETPOS, TRUE, fontSize);
     // Checkbox предпросмотр
     previewSettings = false;
     SendDlgItemMessage(settingsWindow, IDC_CHECK_PREVIEW, BM_GETCHECK, BST_UNCHECKED, 0);
@@ -313,6 +334,12 @@ void CTextEditorWindow::onScroll(HWND settingsWindow, HWND scrolledItem)
             setOpacity(opacity);
         }
     }
+    if (scrolledItem == GetDlgItem(settingsWindow, IDC_SLIDER_FONT_SIZE)) {
+        if (previewSettings) {
+            fontSize = SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_GETPOS, 0, 0);
+            setFontSize(fontSize);
+        }
+    }
 }
 
 void CTextEditorWindow::applySettings(HWND settingsWindow)
@@ -320,6 +347,9 @@ void CTextEditorWindow::applySettings(HWND settingsWindow)
     // Прозрачность
     opacity = SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_GETPOS, 0, 0);
     setOpacity(opacity);
+    // Размер шрифта
+    fontSize = SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_GETPOS, 0, 0);
+    setFontSize(fontSize);
 }
 
 COLORREF CTextEditorWindow::chooseColor(COLORREF initialColor, HWND settingsWindow)

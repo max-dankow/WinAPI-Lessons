@@ -9,7 +9,8 @@ public:
     CTextEditorWindow(const std::wstring title = L"Main window") :
         title(title), 
         isChanged(false), 
-        opacity(100), 
+        opacity(100),
+        fontSize(17),
         previewSettings(false),
         fontColor(RGB(0, 0, 0)),
         backgroundColor(RGB(255, 255, 255)){}
@@ -30,6 +31,7 @@ private:
     HWND editControl;
     bool isChanged;
     int opacity;
+    int fontSize;
     bool previewSettings;
     COLORREF fontColor, backgroundColor;
 
@@ -41,6 +43,7 @@ private:
     void writeToFile(const std::wstring& content, const std::wstring& path);
     void save();
     void setOpacity(int opacity);
+    void setFontSize(int fontSize);
     void applySettings(HWND settingsWindow);
     COLORREF chooseColor(COLORREF initialColor, HWND settingsWindow);
 
