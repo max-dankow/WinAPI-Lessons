@@ -1,8 +1,8 @@
 #include "TextEditorWindow.h"
-#include <commctrl.h>
 #include <memory>
 #include <assert.h>
 #include "Utils.h"
+#include "SettingsWindow.h"
 
 void CTextEditorWindow::RegisterClass()
 {
@@ -109,8 +109,8 @@ LRESULT CTextEditorWindow::windowProc(HWND windowHandle, UINT message, WPARAM wP
             break;
         case WM_CTLCOLOREDIT: {
             HDC hdcStatic = (HDC)wParam;
-            SetTextColor(hdcStatic, pThis->fontColor);
-            SetBkColor(hdcStatic, pThis->backgroundColor);
+            SetTextColor(hdcStatic, pThis->settings.fontColor);
+            SetBkColor(hdcStatic, pThis->settings.backgroundColor);
             break;
         }
         case WM_CLOSE:
@@ -173,9 +173,12 @@ void CTextEditorWindow::save()
     {
         writeToFile(getEditText(), std::wstring(ofs.lpstrFile));
     }
+    isChanged = false;
+    SetWindowText(windowHandle, title.c_str());
+
 }
 
-void CTextEditorWindow::setOpacity(int opacity)
+void CTextEditorWindow::SetOpacity(int opacity)
 {
     assert(opacity >= 0 && opacity <= 100);
     SetWindowLong(windowHandle, GWL_EXSTYLE, GetWindowLong(windowHandle, GWL_EXSTYLE) | WS_EX_LAYERED);
@@ -184,13 +187,13 @@ void CTextEditorWindow::setOpacity(int opacity)
     return;
 }
 
-void CTextEditorWindow::setFontSize(int fontSize)
+void CTextEditorWindow::SetFontSize(int fontSize)
 {
     // TODO: управление ресурсами
     HFONT hFont = reinterpret_cast<HFONT>(SendMessage(editControl, WM_GETFONT, 0, 0));
     if (hFont == NULL) {
         hFont = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, 
-            CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, TEXT("Courier New"));
+            CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, NULL);
     }
     LOGFONT logFont;
     if (GetObject(hFont, sizeof(LOGFONT), &logFont) == 0) {
@@ -238,11 +241,8 @@ void CTextEditorWindow::onMessageFromEdit(int message)
 
 void CTextEditorWindow::onOpenSettings()
 {
-    if (DialogBoxParam(GetModuleHandle(NULL),
-        MAKEINTRESOURCE(IDD_SETTINGS),
-        windowHandle,
-        (DLGPROC)SettingsProc, 
-        reinterpret_cast<LPARAM>(this)) == IDOK)
+    CSettingsWindow settingsWindow(settings, *this);
+    if (settingsWindow.ShowSettingsDialog(windowHandle) == IDOK)
     {
         //RedrawWindow(windowHandle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
         // Complete the command; szItemName contains the 
@@ -255,115 +255,17 @@ void CTextEditorWindow::onOpenSettings()
     }
 }
 
-BOOL CTextEditorWindow::SettingsProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    CTextEditorWindow* pThis = reinterpret_cast<CTextEditorWindow*>(GetWindowLongPtr(windowHandle, GWLP_USERDATA));
-    switch (message)
-    {
-    case WM_INITDIALOG: {
-        pThis = reinterpret_cast<CTextEditorWindow*>(lParam);
-        SetWindowLongPtr(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-        pThis->onSettingsWindowCreated(windowHandle);
-        return TRUE;
-    }
-    case WM_HSCROLL:
-        pThis->onScroll(windowHandle, reinterpret_cast<HWND>(lParam));
-        break;
-    case WM_COMMAND:
-        switch (LOWORD(wParam))
-        {
-            case IDC_CHECK_PREVIEW:
-            {
-                switch (HIWORD(wParam))
-                {
-                case BN_CLICKED:
-                    pThis->previewSettings = SendDlgItemMessage(windowHandle, IDC_CHECK_PREVIEW, BM_GETCHECK, 0, 0);
-                    break;
-                }
-                break;
-            }
-            case IDC_BUTTON_COLOR_FONT:
-                switch (HIWORD(wParam)) {
-                case BN_CLICKED:
-                    pThis->fontColor = pThis->chooseColor(pThis->fontColor, windowHandle);
-                    break;
-                }
-                break;
-            case IDC_BUTTON_BACKGROUND_COLOR:
-                switch (HIWORD(wParam)) {
-                case BN_CLICKED:
-                    pThis->backgroundColor = pThis->chooseColor(pThis->backgroundColor, windowHandle);
-                    break;
-                }
-                break;
-            case IDOK:
-                pThis->applySettings(windowHandle);
-            case IDCANCEL:
-                EndDialog(windowHandle, wParam);
-                return TRUE;
-            }
-    }
-    return 0;
-}
 
 void CTextEditorWindow::redraw() const
 {
     RedrawWindow(windowHandle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
 }
 
-void CTextEditorWindow::onSettingsWindowCreated(HWND settingsWindow)
+
+void CTextEditorWindow::ApplySettings(const Settings& settings)
 {
-    // Слайдер прозрачности
-    SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETRANGEMIN, FALSE, 0);
-    SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETRANGEMAX, FALSE, 100);
-    SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_SETPOS, TRUE, opacity);
-    // Слайдер размера шрифта
-    SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_SETRANGEMIN, FALSE, 8);
-    SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_SETRANGEMAX, FALSE, 72);
-    SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_SETPOS, TRUE, fontSize);
-    // Checkbox предпросмотр
-    previewSettings = false;
-    SendDlgItemMessage(settingsWindow, IDC_CHECK_PREVIEW, BM_GETCHECK, BST_UNCHECKED, 0);
+    this->settings = settings;
+    SetOpacity(settings.opacity);
+    SetFontSize(settings.fontSize);
 }
 
-void CTextEditorWindow::onScroll(HWND settingsWindow, HWND scrolledItem)
-{
-    if (scrolledItem == GetDlgItem(settingsWindow, IDC_SLIDER_OPACITY)) {
-        if (previewSettings) {
-            opacity = SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_GETPOS, 0, 0);
-            setOpacity(opacity);
-        }
-    }
-    if (scrolledItem == GetDlgItem(settingsWindow, IDC_SLIDER_FONT_SIZE)) {
-        if (previewSettings) {
-            fontSize = SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_GETPOS, 0, 0);
-            setFontSize(fontSize);
-        }
-    }
-}
-
-void CTextEditorWindow::applySettings(HWND settingsWindow)
-{
-    // Прозрачность
-    opacity = SendDlgItemMessage(settingsWindow, IDC_SLIDER_OPACITY, TBM_GETPOS, 0, 0);
-    setOpacity(opacity);
-    // Размер шрифта
-    fontSize = SendDlgItemMessage(settingsWindow, IDC_SLIDER_FONT_SIZE, TBM_GETPOS, 0, 0);
-    setFontSize(fontSize);
-}
-
-COLORREF CTextEditorWindow::chooseColor(COLORREF initialColor, HWND settingsWindow)
-{
-    CHOOSECOLORW ccw;
-    COLORREF ccref[16];
-    memset(&(ccw), 0, sizeof(ccw));
-    ccw.lStructSize = sizeof(ccw);
-    ccw.hwndOwner = settingsWindow;
-    ccw.rgbResult = initialColor;
-    ccw.lpCustColors = ccref;
-    ccw.Flags = CC_RGBINIT;
-    if (ChooseColor(&ccw) != 0) {
-        return ccw.rgbResult;
-    }
-    return initialColor;
-}

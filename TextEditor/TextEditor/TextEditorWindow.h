@@ -3,17 +3,19 @@
 #include <string>
 #include "resource.h"
 
+struct Settings {
+    int opacity;
+    int fontSize;
+    COLORREF fontColor, backgroundColor;
+};
+
 class CTextEditorWindow
 {
 public:
     CTextEditorWindow(const std::wstring title = L"Main window") :
         title(title), 
-        isChanged(false), 
-        opacity(100),
-        fontSize(17),
-        previewSettings(false),
-        fontColor(RGB(0, 0, 0)),
-        backgroundColor(RGB(255, 255, 255)){}
+        isChanged(false),
+        settings({100, 17, RGB(0, 0, 0), RGB(255, 255, 255) }) {}
 
     static void RegisterClass();
     void Create();
@@ -23,6 +25,18 @@ public:
         return windowHandle;
     }
 
+    void SetFontColor(COLORREF newColor) {
+        settings.fontColor = newColor;
+        redraw();
+    }
+    void SetBackgroundColor(COLORREF newColor) {
+        settings.backgroundColor = newColor;
+        redraw();
+    }
+    void SetOpacity(int opacity);
+    void SetFontSize(int fontSize);
+    void ApplySettings(const Settings& settings);
+
 private:
     static constexpr wchar_t* ClassName = L"CTextEditor";
     static const int TextEditControlId = 0;
@@ -30,31 +44,22 @@ private:
     HWND windowHandle;
     HWND editControl;
     bool isChanged;
-    int opacity;
-    int fontSize;
-    bool previewSettings;
-    COLORREF fontColor, backgroundColor;
+    Settings settings;
 
     static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
-    static BOOL CALLBACK SettingsProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam);
     void redraw() const;
     void createEditControl();
     std::wstring getEditText();
     void writeToFile(const std::wstring& content, const std::wstring& path);
     void save();
-    void setOpacity(int opacity);
-    void setFontSize(int fontSize);
-    void applySettings(HWND settingsWindow);
-    COLORREF chooseColor(COLORREF initialColor, HWND settingsWindow);
-
+    
     void onResize(int width, int height);
     void onClose();
     void onDestroy();
     void onTextChanged();
     void onMessageFromEdit(int message);
     void onOpenSettings();
-    void onSettingsWindowCreated(HWND settingsWindow);
-    void onScroll(HWND settingsWindow, HWND scrolledItem);
+    
 
 };
 
