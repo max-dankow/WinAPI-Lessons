@@ -22,6 +22,13 @@ private:
     static BOOL CALLBACK SettingsProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam);
     void Init(HWND settingsWindow);
     void onScroll(HWND settingsWindow, HWND scrolledItem);
+    BOOL onCommand(HWND hwndDlg, WPARAM wParam, LPARAM lParam);
+    void onCheckPreviewMessage(HWND hwndDlg, WPARAM wParam);
+    void onButtonFontColorMessage(HWND hwndDlg, WPARAM wParam);
+    void onButtonBackgroundColorMessage(HWND hwndDlg, WPARAM wParam);
+
+
+    void finishWith(const Settings & settings, HWND windowHandle, WPARAM wParam);
     COLORREF chooseColor(COLORREF initialColor, HWND settingsWindow);
 
     bool previewSettings;

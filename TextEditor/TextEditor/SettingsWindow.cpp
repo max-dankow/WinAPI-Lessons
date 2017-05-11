@@ -32,50 +32,7 @@ BOOL CSettingsWindow::SettingsProc(HWND windowHandle, UINT message, WPARAM wPara
         pThis->onScroll(windowHandle, reinterpret_cast<HWND>(lParam));
         break;
     case WM_COMMAND:
-        switch (LOWORD(wParam))
-        {
-        case IDC_CHECK_PREVIEW:
-        {
-            switch (HIWORD(wParam))
-            {
-            case BN_CLICKED:
-                pThis->previewSettings = SendDlgItemMessage(windowHandle, IDC_CHECK_PREVIEW, BM_GETCHECK, 0, 0);
-                if (pThis->previewSettings) {
-                    pThis->editorWindow.ApplySettings(pThis->modifiedSettings);
-                }
-                break;
-            }
-            break;
-        }
-        case IDC_BUTTON_COLOR_FONT:
-            switch (HIWORD(wParam)) {
-            case BN_CLICKED:
-                pThis->modifiedSettings.fontColor = pThis->chooseColor(pThis->initialSettings.fontColor, windowHandle);
-                if (pThis->previewSettings) {
-                    pThis->editorWindow.SetFontColor(pThis->modifiedSettings.fontColor);
-                }
-                break;
-            }
-            break;
-        case IDC_BUTTON_BACKGROUND_COLOR:
-            switch (HIWORD(wParam)) {
-            case BN_CLICKED:
-                pThis->modifiedSettings.backgroundColor = pThis->chooseColor(pThis->initialSettings.backgroundColor, windowHandle);
-                if (pThis->previewSettings) {
-                    pThis->editorWindow.SetBackgroundColor(pThis->modifiedSettings.backgroundColor);
-                }
-                break;
-            }
-            break;
-        case IDOK:
-            pThis->editorWindow.ApplySettings(pThis->modifiedSettings);
-            EndDialog(windowHandle, wParam);
-            return TRUE;
-        case IDCANCEL:
-            pThis->editorWindow.ApplySettings(pThis->initialSettings);
-            EndDialog(windowHandle, wParam);
-            return TRUE;
-        }
+        return pThis->onCommand(windowHandle, wParam, lParam);
     }
     return 0;
 }
@@ -95,6 +52,74 @@ void CSettingsWindow::onScroll(HWND settingsWindow, HWND scrolledItem)
             editorWindow.SetFontSize(modifiedSettings.fontSize);
         }
     }
+}
+
+BOOL CSettingsWindow::onCommand(HWND windowHandle, WPARAM wParam, LPARAM lParam)
+{
+    switch (LOWORD(wParam))
+    {
+    case IDC_CHECK_PREVIEW:
+    {
+        onCheckPreviewMessage(windowHandle, wParam);
+        break;
+    }
+    case IDC_BUTTON_COLOR_FONT:
+        onButtonFontColorMessage(windowHandle, wParam);
+        break;
+    case IDC_BUTTON_BACKGROUND_COLOR:
+        onButtonBackgroundColorMessage(windowHandle, wParam);
+        break;
+    case IDOK:
+        finishWith(modifiedSettings, windowHandle, wParam);
+        return TRUE;
+    case IDCANCEL:
+        finishWith(initialSettings, windowHandle, wParam);
+        return TRUE;
+    }
+    return 0;
+}
+
+void CSettingsWindow::onCheckPreviewMessage(HWND hwndDlg, WPARAM wParam)
+{
+    switch (HIWORD(wParam))
+    {
+    case BN_CLICKED:
+        previewSettings = SendDlgItemMessage(hwndDlg, IDC_CHECK_PREVIEW, BM_GETCHECK, 0, 0);
+        if (previewSettings) {
+            editorWindow.ApplySettings(modifiedSettings);
+        }
+        break;
+    }
+}
+
+void CSettingsWindow::onButtonFontColorMessage(HWND hwndDlg, WPARAM wParam)
+{
+    switch (HIWORD(wParam)) {
+    case BN_CLICKED:
+        modifiedSettings.fontColor = chooseColor(initialSettings.fontColor, hwndDlg);
+        if (previewSettings) {
+            editorWindow.SetFontColor(modifiedSettings.fontColor);
+        }
+        break;
+    }
+}
+
+void CSettingsWindow::onButtonBackgroundColorMessage(HWND hwndDlg, WPARAM wParam)
+{
+    switch (HIWORD(wParam)) {
+    case BN_CLICKED:
+        modifiedSettings.backgroundColor = chooseColor(initialSettings.backgroundColor, hwndDlg);
+        if (previewSettings) {
+            editorWindow.SetBackgroundColor(modifiedSettings.backgroundColor);
+        }
+        break;
+    }
+}
+
+void CSettingsWindow::finishWith(const Settings & settings, HWND windowHandle, WPARAM wParam)
+{
+    editorWindow.ApplySettings(modifiedSettings);
+    EndDialog(windowHandle, wParam);
 }
 
 
