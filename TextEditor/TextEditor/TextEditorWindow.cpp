@@ -45,6 +45,10 @@ void CTextEditorWindow::Create()
     SetWindowText(windowHandle, title.c_str());
 
     createEditControl();
+    // Изначальный шрифт редактора
+    font = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
+        CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, NULL);
+    SendMessage(editControl, WM_SETFONT, (WPARAM)font.Get(), MAKELPARAM(TRUE, 0));
 }
 
 void CTextEditorWindow::createEditControl()
@@ -189,19 +193,16 @@ void CTextEditorWindow::SetOpacity(int opacity)
 
 void CTextEditorWindow::SetFontSize(int fontSize)
 {
-    // TODO: управление ресурсами
     HFONT hFont = reinterpret_cast<HFONT>(SendMessage(editControl, WM_GETFONT, 0, 0));
-    if (hFont == NULL) {
-        hFont = CreateFont(18, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS, 
-            CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, NULL);
-    }
+    assert(hFont != NULL);
     LOGFONT logFont;
-    if (GetObject(hFont, sizeof(LOGFONT), &logFont) == 0) {
+    if (GetObject(font.Get(), sizeof(LOGFONT), &logFont) == 0) {
         throw std::runtime_error("Failed to get font" + std::to_string(GetLastError()));
     }
     logFont.lfHeight = fontSize;
-    HFONT newFont = CreateFontIndirect(&logFont);
-    SendMessage(editControl, WM_SETFONT, (WPARAM)newFont, MAKELPARAM(TRUE, 0));
+    // Замещает предыдущий и хранит новый
+    font = CreateFontIndirect(&logFont);
+    SendMessage(editControl, WM_SETFONT, (WPARAM)font.Get(), MAKELPARAM(TRUE, 0));
 }
 
 void CTextEditorWindow::onClose()

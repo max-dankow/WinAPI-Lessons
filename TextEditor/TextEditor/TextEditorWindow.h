@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <string>
 #include "resource.h"
+#include "Utils.h"
 
 struct Settings {
     int opacity;
@@ -45,6 +46,7 @@ private:
     HWND editControl;
     bool isChanged;
     Settings settings;
+    CGdiObject<HFONT> font;
 
     static LRESULT __stdcall windowProc(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
     void redraw() const;

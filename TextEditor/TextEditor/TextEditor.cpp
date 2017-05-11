@@ -46,5 +46,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
     catch (std::runtime_error& e)  {
         ShowError(e.what());
+        return 1;
     }
 }

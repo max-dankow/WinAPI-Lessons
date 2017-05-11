@@ -2,6 +2,62 @@
 #include <windows.h>
 #include <string>
 
+template <typename T>
+class CGdiObject {
+public:
+    CGdiObject() { }
+    CGdiObject(T&& newObject) {
+        this->object = newObject;
+        newObject = NULL;
+    }
+
+    CGdiObject(CGdiObject&& other) {
+        this->object = other.object;
+        other.invalidate();
+    }
+
+    CGdiObject& operator= (T&& newObject) {
+        Close();
+        this->object = newObject;
+        newObject = NULL;
+        return *this;
+    }
+
+    CGdiObject& operator= (CGdiObject&& other) {
+        Close();
+        this->object = other.object;
+        other.invalidate();
+        return *this;
+    }
+
+    CGdiObject(const CGdiObject&) = delete;
+    CGdiObject& operator= (CGdiObject&) = delete;
+
+    ~CGdiObject() {
+        Close();
+    }
+
+    bool IsValid() {
+        return object != NULL;
+    }
+
+    T Get() const {
+        return object;
+    }
+
+    void Close() {
+        if (IsValid()) {
+            DeleteObject(object);
+        }
+    }
+private:
+    T object;
+
+    void invalidate() {
+        object = NULL;
+    }
+};
+// TODO: dry
 class CHandle {
 public:
     CHandle() { }
