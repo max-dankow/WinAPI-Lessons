@@ -69,3 +69,5 @@ DllExample/unicode_text.txt
 *.db-wal
 *.ipdb
 *.iobj
+VIdeoCapture/VIdeoCapture/Debug/VIdeoCapture.res
+VIdeoCapture/VIdeoCapture/Debug/utils.nativecodeanalysis.xml
