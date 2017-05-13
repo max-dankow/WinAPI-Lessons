@@ -16,6 +16,24 @@ protected:
         }
         return data;
     }
+
+    QImage toImage(const std::vector< std::vector<float> >& data, const QImage& source) {
+        QImage dest(source);
+        for (int i = 0; i < source.height(); ++i) {
+            QRgb* line = reinterpret_cast<QRgb*>(dest.scanLine(i));
+            for (int j = 0; j < source.width(); ++j) {
+                auto grey = data[i][j] * 255;
+                if (grey > 255) {
+                    grey = 255;
+                }
+                if (grey < 0) {
+                    grey = 0;
+                }
+                line[j] = qRgb(grey, grey, grey);
+            }
+        }
+        return dest;
+    }
 };
 
 #endif // IIMAGEFILTER_H
