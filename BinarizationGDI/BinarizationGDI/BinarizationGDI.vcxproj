@@ -144,6 +144,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bradleybinarization.h" />
+    <ClInclude Include="greyscale.h" />
     <ClInclude Include="iimagefilter.h" />
     <ClInclude Include="ImageReader.h" />
   </ItemGroup>
