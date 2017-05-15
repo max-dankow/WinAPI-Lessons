@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include <dshow.h>
 #include <sstream>
 
 void ShowError(const std::wstring &message)

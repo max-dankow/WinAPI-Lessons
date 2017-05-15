@@ -50,7 +50,7 @@ private:
         liDueTime.HighPart = (LONG)(qwDueTime >> 32);
         //SetTimer(NULL, (UINT_PTR)argument, 1000, &MyTimerProc);
         auto timer = CreateWaitableTimer(NULL, FALSE, NULL);
-        if (!SetWaitableTimer(timer, &liDueTime, 50, &funTimerAPC_pulse, pThis, FALSE)) {
+        if (!SetWaitableTimer(timer, &liDueTime, 10, &funTimerAPC_pulse, pThis, FALSE)) {
             ShowError(ErrorMessage(L"SetWaitableTimer", GetLastError()));
         }
         while (true) {
