@@ -40,9 +40,9 @@ public:
         UINT* pixels = (UINT*)bitmapData->Scan0;
         CMatrix<CColor> imageMatrix(bitmap.GetHeight(), bitmap.GetWidth());
 
-        for (UINT row = 0; row < bitmap.GetWidth(); ++row)
+        for (UINT row = 0; row <  bitmap.GetHeight(); ++row)
         {
-            for (UINT col = 0; col < bitmap.GetHeight(); ++col)
+            for (UINT col = 0; col < bitmap.GetWidth(); ++col)
             {
                  Gdiplus::Color color(pixels[row * bitmapData->Stride / 4 + col]);
                  imageMatrix.SetAt({ color.GetR(), color.GetG(), color.GetB() }, col, row);
