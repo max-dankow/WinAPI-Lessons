@@ -33,8 +33,8 @@ void saveToPng(Bitmap& image, const std::wstring& outputPath) {
 
 void processImage(const std::wstring& filePath, const std::wstring& outputFile) {
     CMatrix<CColor> inputMatrix(CImageReader::read(filePath));
-    //Bitmap result = filter.apply(inputImage);
-    //saveToPng(result, outputFile);
+    auto result = CImageReader::toImage(inputMatrix);
+    saveToPng(*result.get(), outputFile);
 }
 
 int wmain(int argc, wchar_t* argv[]) {

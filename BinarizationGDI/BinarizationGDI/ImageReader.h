@@ -52,4 +52,25 @@ public:
 
         return imageMatrix;
     }
+
+    static std::unique_ptr<Gdiplus::Bitmap> toImage(const CMatrix<CColor>& matrix) {
+        std::unique_ptr<Gdiplus::Bitmap> bitmap(new Gdiplus::Bitmap(matrix.GetWidth(), matrix.GetHeight(), PixelFormat32bppARGB));
+
+        CBitmapBitsLocker bitmapLocker(bitmap.get());
+        Gdiplus::BitmapData* bitmapData = bitmapLocker.GetData();
+
+        UINT* pixels = (UINT*)bitmapData->Scan0;
+        CMatrix<CColor> imageMatrix(bitmap->GetHeight(), bitmap->GetWidth());
+
+        for (UINT row = 0; row < bitmap->GetHeight(); ++row)
+        {
+            for (UINT col = 0; col < bitmap->GetWidth(); ++col)
+            {
+                CColor color = matrix.GetAt(col, row);
+                pixels[row * bitmapData->Stride / 4 + col] = Gdiplus::Color::MakeARGB(0xFF, color.r, color.g, color.b);
+            }
+
+        }
+        return bitmap;
+    }
 };
