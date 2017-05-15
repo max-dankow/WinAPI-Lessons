@@ -4,6 +4,9 @@
 #include <string>
 #include <iostream>
 
+//#include "bradleybinarization.h"
+#include "ImageReader.h"
+
 using namespace Gdiplus;
 #pragma comment (lib,"Gdiplus.lib")
 
@@ -29,14 +32,9 @@ void saveToPng(Bitmap& image, const std::wstring& outputPath) {
 
 
 void processImage(const std::wstring& filePath, const std::wstring& outputFile) {
-    Bitmap inputImage(filePath.c_str());
-    if (inputImage.GetLastStatus() == Gdiplus::Ok) {
-        //Bitmap result = filter.apply(inputImage);
-        //saveToPng(result, outputFile);
-    }
-    else {
-        throw std::runtime_error("Fail to binarize file, failed with error " + std::to_string(GetLastError()));
-    }
+    CMatrix<CColor> inputMatrix(CImageReader::read(filePath));
+    //Bitmap result = filter.apply(inputImage);
+    //saveToPng(result, outputFile);
 }
 
 int wmain(int argc, wchar_t* argv[]) {
