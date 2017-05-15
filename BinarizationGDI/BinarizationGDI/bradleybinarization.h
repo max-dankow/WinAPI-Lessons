@@ -34,37 +34,40 @@ struct CRect {
 
 class BradleyBinarization : public IImageFilter {
 public:
-    CMatrix<CColor> apply(const CMatrix<CColor>& source) {
+    CMatrix<CColor> Apply(const CMatrix<CColor>& source) {
         auto height = source.GetHeight();
         auto width = source.GetWidth();
-        CRect imageRect = { 0, 0, source.GetWidth(), source.GetHeight() };
+        CRect imageRect = { 0, 0, width - 1, height - 1 };
         int wh = height / 16, ww = width / 16;
+
+        inputData = GreyScale().GetGrey(source);
         CMatrix<CColor> outputData(height, width);
 
         computeIntegralImage(height, width, inputData);
         for (int i = 0; i < height; ++i) {
             for (int j = 0; j < width; ++j) {
-                CRect rect{ j - ww, i - wh, 2 * ww + 1, 2 * wh + 1 };
-                float localMean = calculateLocalMean(rect, imageRect);
-                float threshold = localMean * (1. - 0.15);
-                if (inputData[i][j] >= threshold) {
-                    outputData.SetAt({0, 0, 0}, i, j);
+                CRect rect{ j - ww, i - wh, j + ww, i + wh };
+                auto localMean = calculateLocalMean(rect, imageRect);
+                auto threshold = localMean * (1. - 0.15);
+                if (inputData.GetAt(j, i) >= threshold) {
+                    outputData.SetAt({255, 255, 255}, j, i);
                 } else {
-                    outputData.SetAt({ 255, 255, 255 }, i, j);
+                    outputData.SetAt({ 0, 0, 0 }, j, i);
                 }
+                //outputData.SetAt(source.GetAt(j, i), j, i);
             }
         }
         return outputData;
     }
 private:
 
-    void computeIntegralImage(int height, int width, const std::vector< std::vector<float> > &input) {
+    void computeIntegralImage(int height, int width, const CMatrix<byte> &input) {
         integral.assign(height, std::vector<float>(width, 0));
         integralSquares.assign(height, std::vector<float>(width, 0));
         for (int i = 0; i < height; ++i) {
             for (int j = 0; j < width; ++j) {
-                integral[i][j] = input[i][j];
-                integralSquares[i][j] = input[i][j] * input[i][j];
+                integral[i][j] = input.GetAt(j, i);
+                integralSquares[i][j] = input.GetAt(j, i) * input.GetAt(j, i);
                 if (i == 0 && j == 0) {
                     continue;
                 }
@@ -120,7 +123,7 @@ private:
     }
 
     std::vector< std::vector<float> > integral, integralSquares;
-    std::vector< std::vector<float> > inputData;
+    CMatrix<byte> inputData;
 };
 
 #endif // BRADLEYBINARIZATION_H

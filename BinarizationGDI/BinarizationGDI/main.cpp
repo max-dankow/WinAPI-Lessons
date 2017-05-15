@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 
+#include "greyscale.h"
 #include "bradleybinarization.h"
 #include "ImageReader.h"
 
@@ -33,8 +34,7 @@ void saveToPng(Bitmap& image, const std::wstring& outputPath) {
 
 void processImage(const std::wstring& filePath, const std::wstring& outputFile) {
     CMatrix<CColor> inputMatrix(CImageReader::read(filePath));
-    BradleyBinarization filter;
-    auto binarize = filter.apply(inputMatrix);
+    auto binarize = BradleyBinarization().Apply(inputMatrix);
     auto result = CImageReader::toImage(binarize);
     saveToPng(*result.get(), outputFile);
 }

@@ -15,19 +15,23 @@ struct CColor {
 template <typename T>
 class CMatrix {
 public:
+    CMatrix() { }
+
     CMatrix(int height, int width) : height(height), width(width) {
-        data.assign(height, std::vector<T>(width));
+        data.assign(height * width, T());
     }
+
     CMatrix(CMatrix&&) = default;
+    CMatrix& operator=(CMatrix&& other) = default;
 
-    CColor GetAt(int col, int row) const {
+    T GetAt(int col, int row) const {
         assert(col >= 0 && col < width && row >= 0 && row < height);
-        return data[row][col];
+        return data[row * width + col];
     }
 
-    void SetAt(const CColor& color, int col, int row) {
+    void SetAt(const T& color, int col, int row) {
         assert(col >= 0 && col < width && row >= 0 && row < height);
-        data[row][col] = color;
+        data[row * width + col] = color;
     }
 
     int GetHeight() const {
@@ -38,13 +42,13 @@ public:
         return width;
     }
 private:
-    std::vector<std::vector<T> > data;
+    std::vector<T> data;
     int height, width;
 };
 
 class IImageFilter {
 public:
-    virtual CMatrix<CColor> apply(const CMatrix<CColor>&) = 0;
+    virtual CMatrix<CColor> Apply(const CMatrix<CColor>&) = 0;
 };
 
 #endif // IIMAGEFILTER_H
