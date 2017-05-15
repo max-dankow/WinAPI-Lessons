@@ -4,7 +4,7 @@
 #include <string>
 #include <iostream>
 
-//#include "bradleybinarization.h"
+#include "bradleybinarization.h"
 #include "ImageReader.h"
 
 using namespace Gdiplus;
@@ -33,7 +33,9 @@ void saveToPng(Bitmap& image, const std::wstring& outputPath) {
 
 void processImage(const std::wstring& filePath, const std::wstring& outputFile) {
     CMatrix<CColor> inputMatrix(CImageReader::read(filePath));
-    auto result = CImageReader::toImage(inputMatrix);
+    BradleyBinarization filter;
+    auto binarize = filter.apply(inputMatrix);
+    auto result = CImageReader::toImage(binarize);
     saveToPng(*result.get(), outputFile);
 }
 
