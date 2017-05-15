@@ -54,7 +54,6 @@ public:
                 } else {
                     outputData.SetAt({ 0, 0, 0 }, j, i);
                 }
-                //outputData.SetAt(source.GetAt(j, i), j, i);
             }
         }
         return outputData;

@@ -45,7 +45,7 @@ int wmain(int argc, wchar_t* argv[]) {
     for (int i = 1; i < argc; ++i) {
         std::cout << "processing " << i << " of " << argc - 1 << std::endl;
         try {
-            processImage(argv[i], std::to_wstring(i) + L".png");
+            processImage(argv[i], L"output/" + std::to_wstring(i) + L".png");
         } catch (const std::runtime_error& e) {
             std::cerr << e.what() << std::endl;
         }

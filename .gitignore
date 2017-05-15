@@ -72,3 +72,5 @@ DllExample/unicode_text.txt
 VIdeoCapture/VIdeoCapture/Debug/VIdeoCapture.res
 VIdeoCapture/VIdeoCapture/Debug/utils.nativecodeanalysis.xml
 VIdeoCapture/VIdeoCapture/Release/VIdeoCapture.res
+*.png
+*.JPG
