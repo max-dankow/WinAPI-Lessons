@@ -118,7 +118,7 @@ void CSettingsWindow::onButtonBackgroundColorMessage(HWND hwndDlg, WPARAM wParam
 
 void CSettingsWindow::finishWith(const Settings & settings, HWND windowHandle, WPARAM wParam)
 {
-    editorWindow.ApplySettings(modifiedSettings);
+    editorWindow.ApplySettings(settings);
     EndDialog(windowHandle, wParam);
 }
 
