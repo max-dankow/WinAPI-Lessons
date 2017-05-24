@@ -4,54 +4,7 @@
 #include <d3d9.h>
 #include <vmr9.h>
 #include <vector>
-
-template <typename T>
-class CComHolder {
-public:
-    CComHolder(T*&& object = NULL) : object(object) {
-        object = NULL;
-    }
-
-    CComHolder(const CComHolder&) = delete;
-    CComHolder operator=(const CComHolder&) = delete;
-
-    CComHolder(CComHolder&& other) {
-        this->object = other.object;
-        other.object = NULL;
-    }
-
-    CComHolder& operator=(CComHolder&& other) {
-        this->object = other.object;
-        other.object = NULL;
-        return *this;
-    }
-
-    ~CComHolder() {
-        if (Exist()) {
-            object->Release();
-        }
-    }
-
-    bool Exist() {
-        return object != NULL;
-    }
-
-    void Set(T*&& pointer) {
-        if (Exist()) {
-            object->Release();
-            object = NULL;
-        }
-        object = pointer;
-        pointer = NULL;
-    }
-
-    T* Object() {
-        return object;
-    }
-
-private:
-    T *object;
-};
+#include "ComHolder.h"
 
 // Описывает устройство видеозахвата
 struct VideoDevice {
