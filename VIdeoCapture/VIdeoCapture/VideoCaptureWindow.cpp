@@ -151,7 +151,7 @@ void CVideoCaptureWindow::detectMotion()
     if (!previousImage.IsNull() && !currentImage.IsNull()) {
         std::lock_guard<std::mutex> lock(mutex);
         auto moveMask = CMotionDetector::Detect(previousImage, currentImage);
-        CMotionDetector::saveMoveMaskToBitmap(moveMask, previousImage);
+        CMotionDetector::SaveMoveMaskToBitmap(moveMask, previousImage);
     }
 }
 
