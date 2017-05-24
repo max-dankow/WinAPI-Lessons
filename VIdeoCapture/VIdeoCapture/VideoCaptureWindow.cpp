@@ -100,8 +100,6 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
 
 
         return TRUE;
-    case WM_CREATE:
-        break;
     case WM_ERASEBKGND:
         return 1;
     case WM_PAINT: {

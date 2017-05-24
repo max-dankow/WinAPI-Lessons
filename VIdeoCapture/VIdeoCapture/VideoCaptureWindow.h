@@ -5,6 +5,7 @@
 #include <mutex>
 
 #include "VideoCaptureService.h"
+#include "Bitmap.h"
 
 class CVideoCaptureWindow
 {
