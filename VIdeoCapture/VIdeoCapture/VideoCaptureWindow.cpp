@@ -25,15 +25,15 @@ void CVideoCaptureWindow::RegisterClass()
 void CVideoCaptureWindow::Create(HWND parentWindow)
 {
     // TODO: no constatns
-    auto style = (parentWindow == NULL) ? WS_OVERLAPPEDWINDOW : WS_CHILD;
+    auto style = (parentWindow == NULL) ? WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX : WS_CHILD;
     windowHandle = CreateWindow(
         ClassName,  // name of window class
         title.c_str(),  // title-bar string
-        style | WS_BORDER,
-        0,  // default horizontal position
-        0,  // default vertical position
-        800,  // default width
-        300,  // default height
+        style,
+        200,  // default horizontal position
+        200,  // default vertical position
+        WindowWidth,  // default width
+        WindowHeight,  // default height
         parentWindow,
         static_cast<HMENU>(NULL),
         GetModuleHandle(NULL),  // handle to current application instance
@@ -78,31 +78,14 @@ void CVideoCaptureWindow::OnTimer()
     UpdateWindow(windowHandle);
 }
 
-void CVideoCaptureWindow::dispayImage(HDC hDC, RECT imageRect, CBitmap& image)
-{
-    
-    //auto hBitmap = image.GetBitmap(hDC);
-
-    // TODO: remove - Закомментированные действия перенесены в CBitmap
-    //HDC hMemDC = CreateCompatibleDC(hDC);
-    //hBitmap = reinterpret_cast<HBITMAP>(SelectObject(hMemDC, hBitmap));
-    //BitBlt(hDC, imageRect.left, imageRect.top, image.GetWidth(), image.GetHeight(), hMemDC, 0, 0, SRCCOPY);
-    //DeleteObject(SelectObject(hMemDC, hBitmap));
-    //DeleteDC(hMemDC);
-}
-
 void CVideoCaptureWindow::detectMotion()
 {
     if (!previousImage.IsNull() && !currentImage.IsNull()) {
-        CMotionDetector::Detect(previousImage, currentImage);
+        std::lock_guard<std::mutex> lock(mutex);
+        auto moveMask = CMotionDetector::Detect(previousImage, currentImage);
+        CMotionDetector::saveMoveMaskToBitmap(moveMask, previousImage);
     }
 }
-//
-//unsigned CVideoCaptureWindow::threadProc(void * pArguments)
-//{
-//    ShowError(L"Hello from other tread");
-//    return 0;
-//}
 
 LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -126,10 +109,11 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         PAINTSTRUCT paintStruct;
         CDeviceContext contextHolder(windowHandle, &paintStruct);
         HDC context = contextHolder.getContext();
-        if (!pThis->currentImage.IsNull()) {
-            pThis->currentImage.Show(context, pThis->currentImageRect);
-            //pThis->dispayImage(context, pThis->currentImageRect, pThis->currentImage.GetImage());
-        }
+        //if (!pThis->currentImage.IsNull()) {
+        //    pThis->currentImage.Show(context, pThis->currentImageRect);
+        //    //pThis->dispayImage(context, pThis->currentImageRect, pThis->currentImage.GetImage());
+        //}
+        std::lock_guard<std::mutex> lock(pThis->mutex);
         if (!pThis->previousImage.IsNull()) {
             pThis->previousImage.Show(context, pThis->previousImageRect);
 

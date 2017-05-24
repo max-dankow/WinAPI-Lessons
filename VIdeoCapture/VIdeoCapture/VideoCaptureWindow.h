@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <string>
 #include <process.h>
+#include <mutex>
 
 #include "VideoCaptureService.h"
 
@@ -35,11 +36,13 @@ private:
     HWND windowHandle;
     CBitmap currentImage, previousImage;
     CVideoCaptureService videoCaptureService;
-    RECT previewRect = { 0, 0, 400, 300 };
-    RECT previousImageRect = { 400, 0, 800, 300 };
-    RECT currentImageRect = { 800, 0, 1200, 300 };
+    const RECT previewRect = { 0, 0, 400, 300 };
+    const RECT previousImageRect = { 400, 0, 800, 300 };
+    const RECT currentImageRect = { 800, 0, 1200, 300 };
+    const unsigned WindowHeight = 600;
+    const unsigned WindowWidth = 800;
+    std::mutex mutex;
 
-    void dispayImage(HDC hDc, RECT imageRect, CBitmap& image);
     void detectMotion();
     static unsigned int __stdcall threadProc(void* argument) {
         CVideoCaptureWindow* pThis = static_cast<CVideoCaptureWindow*>(argument);

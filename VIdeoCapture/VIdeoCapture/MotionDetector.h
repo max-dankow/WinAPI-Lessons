@@ -7,10 +7,11 @@
 class CMotionDetector
 {
 public:
+    static const int Threshhold = 32;
     CMotionDetector();
     ~CMotionDetector();
 
-    static void Detect(CBitmap& previous, CBitmap& current) {
+    static std::vector< std::vector< int > > Detect(CBitmap& previous, CBitmap& current) {
         std::vector< std::vector< int > > moveMask(current.GetHeight(), std::vector< int >(current.GetWidth(), 0));
         for (int i = 0; i < current.GetWidth(); i++) {
             for (int j = 0; j < current.GetHeight(); j++) {
@@ -20,18 +21,17 @@ public:
                 auto dg = std::abs(newPixel.GetG() - oldPixel.GetG());
                 auto db = std::abs(newPixel.GetB() - oldPixel.GetB());
 
-                if (((dr + dg + db) / 3) > 32) {
+                if (((dr + dg + db) / 3) > Threshhold) {
                     moveMask[j][i] = 1;
-                    //previous.SetPixelAt(i, j, { 255, 255, 255 });
                 } else {
                     moveMask[j][i] = 0;
-                    //previous.SetPixelAt(i, j, { 0, 0, 0 });
                 }
             }
         }
         std::vector< std::vector< int > > moveMaskWithoutNoise(current.GetHeight(), std::vector< int >(current.GetWidth(), 0));
         simpleNoiseFiter(moveMask, moveMaskWithoutNoise, current.GetHeight(), current.GetWidth());
-        moveMaskToBitmap(moveMaskWithoutNoise, previous);
+        //saveMoveMaskToBitmap(moveMaskWithoutNoise, previous);
+        return moveMaskWithoutNoise;
     }
 
     static void simpleNoiseFiter(const std::vector< std::vector< int > > &moveMask, 
@@ -60,7 +60,7 @@ public:
         }
     }
 
-    static void moveMaskToBitmap(const std::vector< std::vector< int > > &moveMask, CBitmap& dest) {
+    static void saveMoveMaskToBitmap(const std::vector< std::vector< int > > &moveMask, CBitmap& dest) {
         for (int h = 0; h < dest.GetWidth(); h++) {
             for (int w = 0; w < dest.GetHeight(); w++) {
                 if (moveMask[w][h] == 1) {
