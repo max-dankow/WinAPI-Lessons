@@ -30,8 +30,8 @@ void CVideoCaptureWindow::Create(HWND parentWindow)
         ClassName,  // name of window class
         title.c_str(),  // title-bar string
         style,
-        200,  // default horizontal position
-        200,  // default vertical position
+        0,  // default horizontal position
+        0,  // default vertical position
         WindowWidth,  // default width
         WindowHeight,  // default height
         parentWindow,

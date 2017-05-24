@@ -32,7 +32,7 @@ public:
     // которое следует использовать. Вызывает перестроение графа захвата.
     void SelectVideoDevice(size_t index);
 
-    void StartPreview(RECT previewRect = { 0, 0, 0, 0 });
+    void StartPreview(RECT previewRect);
     void PausePreview();
     void StopPreview();
 
@@ -40,6 +40,7 @@ public:
         return isRunning;
     }
 
+    // Получает текущее изображение с рендера видеопотока
     BITMAPINFOHEADER* CVideoCaptureService::ObtainCurrentImage();
 
 private:
