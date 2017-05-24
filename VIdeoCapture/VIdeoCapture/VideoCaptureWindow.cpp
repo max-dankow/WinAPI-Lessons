@@ -24,7 +24,6 @@ void CVideoCaptureWindow::RegisterClass()
 
 void CVideoCaptureWindow::Create(HWND parentWindow)
 {
-    // TODO: no constatns
     auto style = (parentWindow == NULL) ? WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX : WS_CHILD;
     windowHandle = CreateWindow(
         ClassName,  // name of window class
@@ -50,11 +49,11 @@ void CVideoCaptureWindow::Create(HWND parentWindow)
         ShowError(errorMessage);
     }
 
-    CreateTerminationEvent();
+    createTerminationEvent();
 }
 
 
-void CVideoCaptureWindow::CreateTerminationEvent()
+void CVideoCaptureWindow::createTerminationEvent()
 {
     terminationEvent = CreateEvent(NULL, TRUE, FALSE, 0);
     if (terminationEvent.IsValid()) {
@@ -72,7 +71,7 @@ void CVideoCaptureWindow::Show(int cmdShow) const
 void CVideoCaptureWindow::StartPreview()
 {
     try {
-        videoCaptureService.StartPreview(previewRect);
+        videoCaptureService.StartPreview(PreviewRect);
         worker = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &CVideoCaptureWindow::threadProc, this, 0, NULL));
     }
     catch (std::wstring errorMessage) {
@@ -80,15 +79,57 @@ void CVideoCaptureWindow::StartPreview()
     }
 }
 
+inline void CVideoCaptureWindow::ObtainCurrentImage() {
+    previousImage.Release();
+    previousImage = std::move(currentImage);
+    currentImage = CBitmap(GetDC(windowHandle), videoCaptureService.ObtainCurrentImage());
+}
+
 void CVideoCaptureWindow::stopMotionDetection()
 {
     SetEvent(terminationEvent.Get());
+}
+
+inline unsigned int CVideoCaptureWindow::threadProc(void * argument) {
+    CVideoCaptureWindow* pThis = static_cast<CVideoCaptureWindow*>(argument);
+    __int64 qwDueTime = -00000000LL;
+    LARGE_INTEGER   liDueTime;
+    // Copy the relative time into a LARGE_INTEGER.
+    liDueTime.LowPart = (DWORD)(qwDueTime & 0xFFFFFFFF);
+    liDueTime.HighPart = (LONG)(qwDueTime >> 32);
+    pThis->timer = CreateWaitableTimer(NULL, FALSE, NULL);
+    if (!SetWaitableTimer(pThis->timer.Get(), &liDueTime, timerPeriod, &timerProc, pThis, FALSE)) {
+        ShowError(ErrorMessage(L"SetWaitableTimer", GetLastError()));
+    }
+    // Когда произойдет сигнал о завершении, таймер будет отключен и alertable функция вернет упревление 
+    // и сможет выйти из цикла.
+    while (WaitForSingleObject(pThis->terminationEvent.Get(), 0) != WAIT_OBJECT_0) {
+        SleepEx(INFINITE, TRUE);
+    }
+    return 0;
+}
+
+inline void CVideoCaptureWindow::timerProc(void * pvArg, DWORD dwTimerLowValue, DWORD dwTimerHighValue)
+{
+    CVideoCaptureWindow* pThis = static_cast<CVideoCaptureWindow*>(pvArg);
+    pThis->OnTimer();
 }
 
 void CVideoCaptureWindow::OnDestroy()
 {
     stopMotionDetection();
     WaitForSingleObject(worker.Get(), INFINITE);
+}
+
+void CVideoCaptureWindow::OnDraw()
+{
+    PAINTSTRUCT paintStruct;
+    CDeviceContext contextHolder(windowHandle, &paintStruct);
+    HDC context = contextHolder.getContext();
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!previousImage.IsNull()) {
+        previousImage.Show(context, PreviousImageRect);
+    }
 }
 
 void CVideoCaptureWindow::OnTimer()
@@ -100,8 +141,8 @@ void CVideoCaptureWindow::OnTimer()
     }
     ObtainCurrentImage();
     detectMotion();
-    InvalidateRect(windowHandle, &previousImageRect, FALSE);
-    InvalidateRect(windowHandle, &currentImageRect, FALSE);
+    InvalidateRect(windowHandle, &PreviousImageRect, FALSE);
+    InvalidateRect(windowHandle, &CurrentImageRect, FALSE);
     UpdateWindow(windowHandle);
 }
 
@@ -124,26 +165,11 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         // Запоминаем указатель на объект соответствующего класса при запуске
         pThis = static_cast<CVideoCaptureWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
         SetWindowLongPtr(windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
-
-
         return TRUE;
     case WM_ERASEBKGND:
         return 1;
     case WM_PAINT: {
-        //pThis->OnDraw();
-        PAINTSTRUCT paintStruct;
-        CDeviceContext contextHolder(windowHandle, &paintStruct);
-        HDC context = contextHolder.getContext();
-        //if (!pThis->currentImage.IsNull()) {
-        //    pThis->currentImage.Show(context, pThis->currentImageRect);
-        //    //pThis->dispayImage(context, pThis->currentImageRect, pThis->currentImage.GetImage());
-        //}
-        std::lock_guard<std::mutex> lock(pThis->mutex);
-        if (!pThis->previousImage.IsNull()) {
-            pThis->previousImage.Show(context, pThis->previousImageRect);
-
-            //pThis->dispayImage(context, pThis->previousImageRect, pThis->previousImage.GetImage());
-        }
+        pThis->OnDraw();
         break;
     }
     case WM_DESTROY:
