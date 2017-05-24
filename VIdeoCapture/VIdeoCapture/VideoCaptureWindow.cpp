@@ -49,6 +49,17 @@ void CVideoCaptureWindow::Create(HWND parentWindow)
     catch (std::wstring errorMessage) {
         ShowError(errorMessage);
     }
+
+    CreateTerminationEvent();
+}
+
+
+void CVideoCaptureWindow::CreateTerminationEvent()
+{
+    terminationEvent = CreateEvent(NULL, TRUE, FALSE, 0);
+    if (terminationEvent.IsValid()) {
+        throw std::wstring(L"Failed to create event");
+    }
 }
 
 void CVideoCaptureWindow::Show(int cmdShow) const
@@ -62,15 +73,31 @@ void CVideoCaptureWindow::StartPreview()
 {
     try {
         videoCaptureService.StartPreview(previewRect);
-        _beginthreadex(NULL, 0, &CVideoCaptureWindow::threadProc, this, 0, NULL);
+        worker = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &CVideoCaptureWindow::threadProc, this, 0, NULL));
     }
     catch (std::wstring errorMessage) {
         ShowError(errorMessage);
     }
 }
 
+void CVideoCaptureWindow::stopMotionDetection()
+{
+    SetEvent(terminationEvent.Get());
+}
+
+void CVideoCaptureWindow::OnDestroy()
+{
+    stopMotionDetection();
+    WaitForSingleObject(worker.Get(), INFINITE);
+}
+
 void CVideoCaptureWindow::OnTimer()
 {
+    DWORD test = WaitForSingleObject(terminationEvent.Get(), 0);
+    if (test == WAIT_OBJECT_0) {
+        CancelWaitableTimer(timer.Get());
+        return;
+    }
     ObtainCurrentImage();
     detectMotion();
     InvalidateRect(windowHandle, &previousImageRect, FALSE);
@@ -120,7 +147,7 @@ LRESULT CALLBACK CVideoCaptureWindow::windowProc(HWND windowHandle, UINT message
         break;
     }
     case WM_DESTROY:
-        //pThis->OnDestroy();
+        pThis->OnDestroy();
         PostQuitMessage(0);
         break;
     default:

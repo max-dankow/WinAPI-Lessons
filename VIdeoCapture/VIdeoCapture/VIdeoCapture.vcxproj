@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClInclude Include="Bitmap.h" />
     <ClInclude Include="ComHolder.h" />
+    <ClInclude Include="Handle.h" />
     <ClInclude Include="MotionDetector.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />

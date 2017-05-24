@@ -6,6 +6,7 @@
 
 #include "VideoCaptureService.h"
 #include "Bitmap.h"
+#include "Handle.h"
 
 class CVideoCaptureWindow
 {
@@ -42,9 +43,17 @@ private:
     const RECT currentImageRect = { 800, 0, 1200, 300 };
     const unsigned WindowHeight = 600;
     const unsigned WindowWidth = 800;
-    std::mutex mutex;
 
+    // Синхронихация с рабочим потоком
+    std::mutex mutex;
+    CHandle terminationEvent;
+    CHandle worker;
+
+    CHandle timer;
+
+    void CreateTerminationEvent();
     void detectMotion();
+    void stopMotionDetection();
     static unsigned int __stdcall threadProc(void* argument) {
         CVideoCaptureWindow* pThis = static_cast<CVideoCaptureWindow*>(argument);
         __int64 qwDueTime = -00000000LL;
@@ -53,11 +62,13 @@ private:
         liDueTime.LowPart = (DWORD)(qwDueTime & 0xFFFFFFFF);
         liDueTime.HighPart = (LONG)(qwDueTime >> 32);
         //SetTimer(NULL, (UINT_PTR)argument, 1000, &MyTimerProc);
-        auto timer = CreateWaitableTimer(NULL, FALSE, NULL);
-        if (!SetWaitableTimer(timer, &liDueTime, 10, &funTimerAPC_pulse, pThis, FALSE)) {
+        pThis->timer = CreateWaitableTimer(NULL, FALSE, NULL);
+        if (!SetWaitableTimer(pThis->timer.Get(), &liDueTime, 10, &funTimerAPC_pulse, pThis, FALSE)) {
             ShowError(ErrorMessage(L"SetWaitableTimer", GetLastError()));
         }
-        while (true) {
+        // Когда произойдет сигнал о завершении, таймер будет отключен и alertable функция вернет упревление 
+        // и сможет выйти из цикла.
+        while (WaitForSingleObject(pThis->terminationEvent.Get(), 0) != WAIT_OBJECT_0) {
             SleepEx(INFINITE, TRUE);
         }
         return 0;
