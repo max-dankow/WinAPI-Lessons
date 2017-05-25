@@ -37,11 +37,11 @@ private:
     HWND windowHandle;
     CBitmap currentImage, previousImage;
     CVideoCaptureService videoCaptureService;
-    const RECT PreviewRect = { 0, 0, 400, 300 };
-    const RECT PreviousImageRect = { 400, 0, 800, 300 };
-    const RECT CurrentImageRect = { 800, 0, 1200, 300 };
-    const unsigned WindowHeight = 400;
-    const unsigned WindowWidth = 800;
+    const RECT PreviewRect = { 0, 0, 320, 240 };
+    const RECT PreviousImageRect = { 320, 0, 640, 240 };
+    //const RECT CurrentImageRect = { 800, 0, 1200, 300 };
+    const unsigned WindowHeight = 240;
+    const unsigned WindowWidth = 640;
 
     // ¬се дл€ дополнительного рабочего потока
     CHandle worker;

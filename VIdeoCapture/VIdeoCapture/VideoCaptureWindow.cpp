@@ -142,7 +142,7 @@ void CVideoCaptureWindow::OnTimer()
     ObtainCurrentImage();
     detectMotion();
     InvalidateRect(windowHandle, &PreviousImageRect, FALSE);
-    InvalidateRect(windowHandle, &CurrentImageRect, FALSE);
+    //InvalidateRect(windowHandle, &CurrentImageRect, FALSE);
     UpdateWindow(windowHandle);
 }
 
